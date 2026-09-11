@@ -13,24 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.core.config import settings  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
-ES = "https://api.etherscan.io/v2/api"
-CHAIN_ID = {"eth": 1, "polygon": 137}
-NATIVE = {"eth": "ETH", "polygon": "POL"}
-ES_MIN_INTERVAL = 1 / 2.5  # free tier is 3/s server-side; 2.5/s paced = zero rejections (day1_ratetest.py)
-
-# Real tokens only: tokentx also returns address-poisoning spam and zero-value spoofed
-# transfers "from" any address. ponytail: static allowlist; token registry arrives with §6.
-TOKENS = {
-    "eth": {"0xdac17f958d2ee523a2206206994597c13d831ec7": "USDT",
-            "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "USDC",
-            "0x6b175474e89094c44da98b954eedeac495271d0f": "DAI",
-            "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "WETH"},
-    "polygon": {"0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "USDT",
-                "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359": "USDC",
-                "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": "USDC.e",
-                "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": "WETH",
-                "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": "WPOL"},
-}
+ES_MIN_INTERVAL = 1 / 2.5  # free tier is 3/s server-side; 2.5/s paced (day1_ratetest.py)
+from app.providers.etherscan_v2 import CHAIN_ID, ES, NATIVE, TOKENS  # noqa: E402,F401
 
 
 class RateLimited(Exception):

@@ -9,6 +9,9 @@ skipped for `cooldown` seconds instead of costing a full timeout on every call (
 went unresponsive from our IP mid-survey and each call burned 30 s before failing over).
 Free-tier ceilings are low: Blockstream caps unauthenticated use at 700 req/hour/IP (since 2025-07-15,
 per its 429 body); mempool.space throttles bursts without a published number. Pace, cache, fail over.
+
+Every read goes through the §12 raw store first (providers/store.py): `calls` counts logical requests
+(the trace budget — identical live or replayed), `upstream` counts network requests.
 """
 import time
 from collections import Counter
@@ -18,6 +21,9 @@ import httpx
 from app.boundary.change import coinjoin_reason, detect_change
 from app.core.config import settings
 from app.providers.base import BlockchainProvider, Edge, TxIn, TxOut, TxRecord
+from app.providers.store import open_store
+
+IMMUTABLE = "immutable"
 
 
 class ProviderError(RuntimeError):
@@ -27,20 +33,43 @@ class ProviderError(RuntimeError):
 class EsploraProvider(BlockchainProvider):
     chain = "btc"
 
-    def __init__(self, bases=None, min_interval=0.5, timeout=10.0, cooldown=120.0, slow=8.0):
+    def __init__(self, bases=None, min_interval=0.5, timeout=10.0, cooldown=120.0, slow=8.0,
+                 store="auto", offline=False, snapshot: int | None = None):
         self.bases = bases or [settings.mempool_base_url, settings.esplora_base_url]
         self.min_interval, self.cooldown, self.slow = min_interval, cooldown, slow
-        self.calls, self.calls_by, self.trips = 0, Counter(), Counter()
+        self.store = open_store() if store == "auto" else store   # None/False = uncached (drills)
+        self.offline = offline            # serve only from the store (§11.2 offline fixture mode)
+        self.snapshot = snapshot          # scope for volatile reads that take no until_block (stats)
+        self.calls, self.upstream, self.store_hits = 0, 0, 0
+        self.calls_by, self.trips = Counter(), Counter()
         self.down_until: dict[str, float] = {}
         self.truncated: set[str] = set()   # addresses whose history exceeded the page cap
         self._last: dict[str, float] = {}
-        self._cache: dict[str, object] = {}  # ponytail: in-process; content-addressed store is §12/day 6
+        self._cache: dict[str, object] = {}  # in-process memo over the store (confirmed txs, outspends)
         self._http = httpx.Client(timeout=timeout)
 
     # ---------- transport ----------
-    def _get(self, path: str, cache: bool = False):
+    def _get(self, path: str, scopes=(), keep=None):
+        """scopes: store scopes that may answer this read, in order. keep(body) -> scope to persist a
+        fresh answer under (None = don't persist; default: the first scope)."""
         if path in self._cache:
             return self._cache[path]
+        self.calls += 1
+        req = "esplora:" + path
+        for sc in scopes if self.store else ():
+            body = self.store.get(req, sc)
+            if body is not None:
+                self.store_hits += 1
+                return body
+        if self.offline:
+            raise ProviderError(f"offline: {path} not in the raw store (scopes {list(scopes)})")
+        j = self._fetch(path)
+        sc = keep(j) if keep else (scopes[0] if scopes else None)
+        if self.store and sc:
+            self.store.put(req, sc, "esplora", j)
+        return j
+
+    def _fetch(self, path: str):
         now = time.time()
         up = [b for b in self.bases if self.down_until.get(b, 0) <= now]
         # all tripped -> half-open: retry whichever recovers first rather than failing outright
@@ -51,7 +80,7 @@ class EsploraProvider(BlockchainProvider):
             if wait > 0:
                 time.sleep(wait)
             self._last[base] = time.time()
-            self.calls += 1
+            self.upstream += 1
             self.calls_by[base] += 1
             try:
                 r = self._http.get(base + path)
@@ -62,10 +91,7 @@ class EsploraProvider(BlockchainProvider):
             if time.time() - self._last[base] > self.slow:
                 self._trip(base)  # throttling often shows as trickled responses (httpx timeout is per-read)
             if r.status_code == 200:
-                j = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
-                if cache:
-                    self._cache[path] = j
-                return j
+                return r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
             errs.append(f"{base}: HTTP {r.status_code} {r.text[:80]}")
             if r.status_code == 429 or r.status_code >= 500:
                 self._trip(base)
@@ -77,17 +103,23 @@ class EsploraProvider(BlockchainProvider):
 
     # ---------- raw queries ----------
     def get_tx(self, tx_hash: str) -> TxRecord:
-        j = self._get(f"/tx/{tx_hash}")
+        j = self._get(f"/tx/{tx_hash}", (IMMUTABLE,), lambda j: IMMUTABLE if j["status"]["confirmed"] else None)
         if j["status"]["confirmed"]:
             self._cache[f"/tx/{tx_hash}"] = j
         return _rec(j)
 
     def address_stats(self, address: str) -> dict:
-        return self._get(f"/address/{address}")["chain_stats"]
+        """Current (not snapshot-bounded) stats; stored under the trace's snapshot scope so a replay sees
+        the same numbers. ponytail: funded_txo_count is as-of-fetch, not as-of-snapshot — used only for
+        the hub threshold and the change freshness feature."""
+        sc = (f"snapshot:{self.snapshot}",) if self.snapshot else ()
+        return self._get(f"/address/{address}", sc)["chain_stats"]
 
     def outspend(self, txid: str, vout: int, until_block: int) -> str | None:
         """Txid that spent (txid, vout) at or before until_block, else None."""
-        o = self._get(f"/tx/{txid}/outspend/{vout}")
+        o = self._get(f"/tx/{txid}/outspend/{vout}", (IMMUTABLE, f"snapshot:{until_block}"),
+                      lambda o: IMMUTABLE if o.get("spent") and (o.get("status") or {}).get("confirmed")
+                      else f"snapshot:{until_block}")
         st = o.get("status") or {}
         if not (o.get("spent") and st.get("confirmed") and st["block_height"] <= until_block):
             return None
@@ -102,7 +134,8 @@ class EsploraProvider(BlockchainProvider):
         before it (e.g. a tx the trace already holds) instead of from today."""
         out, last = [], older_than
         for _ in range(max_pages):
-            page = self._get(f"/address/{address}/txs/chain" + (f"/{last}" if last else ""))
+            page = self._get(f"/address/{address}/txs/chain" + (f"/{last}" if last else ""),
+                             (f"snapshot:{until_block}",))
             if not page:
                 return sorted(out, key=_order)
             for t in page:

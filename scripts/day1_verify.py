@@ -9,6 +9,7 @@ Forward BFS, level by level; stops at the first hop level that reaches any label
 Day 2: a thin CLI over the backend modules —
   labels   app.labels.registry.PgRegistry — a pinned label-set version from Postgres (ingest.persist)
   BTC      app.providers.esplora (Tx hypernodes, change + CoinJoin annotation, failover/breaker)
+  EVM      app.providers.etherscan_v2 (native + internal + erc20, conditional fetch, windowed paging)
   sweep    app.labels.sweep (§6.2c: >=90% of a spend to one entity's hot wallets AND >=3 senders)
   cluster  app.labels.propagate (SAME_OWNER from co-inputs; CoinJoin txs excluded)
 Results (§6.3): ATTRIBUTED (deposit: ground_truth | exchange_published_deposit | sweep_proven) ·
@@ -21,13 +22,14 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from day1_chain import REPO, Chain  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+REPO = Path(__file__).resolve().parents[1]
 
 from app.labels.propagate import propagate, same_owner_edges  # noqa: E402
-from app.labels.registry import DEPOSIT, SANCTIONED, Label, PgRegistry  # noqa: E402
-from app.labels.sweep import Outflow, btc_sweep_proof, sweep_target  # noqa: E402
+from app.labels.registry import DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry  # noqa: E402
+from app.labels.sweep import btc_sweep_proof, evm_sweep_proof  # noqa: E402
 from app.providers.esplora import EsploraProvider, ProviderError  # noqa: E402
+from app.providers.etherscan_v2 import EtherscanV2Provider  # noqa: E402
 
 HARD_MAX_HOPS, MAX_CALLS = 5, 200
 HUB_MIN_RECEIPTS = 1000   # ponytail: §9.3 unlabeled-hub threshold; a knob, not a finding
@@ -63,19 +65,24 @@ def expand_btc(prov: EsploraProvider, node: dict, until: int):
     return spends, moves
 
 
-def expand_evm(ch: Chain, chain: str, node: dict):
-    moves = ch.evm_outgoing(chain, node["addr"], node["since"])
-    if node.get("asset"):  # follow the asset that arrived (no DEX-swap following yet)
-        moves = [m for m in moves if m["asset"] == node["asset"]]
-    return [], [{**m, "out": None, "change": None, "prev": node.get("via")} for m in moves]
+def expand_evm(prov: EtherscanV2Provider, node: dict, until: int):
+    """-> (outgoing edges, moves). Account model: one tx hash can emit several movements (§7.2)."""
+    edges = prov.get_outgoing(node["addr"], until, node["since"])
+    if node.get("asset"):  # follow the asset that arrived (no DEX-swap following yet — §9.3)
+        edges = [e for e in edges if e.asset == node["asset"]]
+    return edges, [{"to": e.dst, "value": e.value / 10 ** e.meta["decimals"], "asset": e.asset, "hash": e.tx_hash,
+                    "ts": e.ts, "block": e.block, "from": e.src, "out": None, "change": None, "edge": e,
+                    "prev": node.get("via")} for e in edges]
 
 
 def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5, label_set=None):
     t0 = time.time()
     reg = PgRegistry(label_set)
     print(f"labels: {reg.version} — {reg.n_labels} across {len(reg.entities)} entities ({time.time() - t0:.1f}s)")
-    ch, prov = Chain(), EsploraProvider()
-    calls = lambda: ch.calls + prov.calls  # noqa: E731
+    prov = (EsploraProvider(snapshot=until_block) if chain == "btc" else EtherscanV2Provider(chain))
+    if until_block == 10**9:   # every case is pinned to a block snapshot (§12)
+        until_block = prov.snapshot = prov.tip() if chain != "btc" else int(prov._get("/blocks/tip/height"))
+    calls = lambda: prov.calls  # noqa: E731
     start = {"addr": wallet, "hop": 0, "since": since_block, "parent": None, "via": None}
     nodes = {wallet: start}
     hits, flags, so_edges, sweep_evidence = [], [], [], []
@@ -94,14 +101,13 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
             lab, ev = btc_sweep_proof(prov, reg, node["addr"], spends, until_block, dep_tx)
             if ev.get("sweep"):
                 sweep_evidence.append({"address": node["addr"], **ev})
-        else:  # ponytail: EVM share test only; the senders test lands with the EVM adapter (day 4)
-            groups = [Outflow(a, 0, 0, a, [(m["to"], m["value"]) for m in moves if m["asset"] == a])
-                      for a in sorted({m["asset"] for m in moves})]
-            got = sweep_target(groups, lambda a: reg.hot_entity(chain, a))
-            lab = got and Label(node["addr"], chain, DEPOSIT, got[0], "sweep", 0.5, "sweep_proven",
-                                f"{got[1]:.1%} of {got[2].asset} outflow -> {got[0]} hot (senders test pending, EVM)")
+        else:
+            lab, ev = evm_sweep_proof(prov, reg, node["addr"], spends, until_block,
+                                      node.get("via", {}).get("edge"))
+            if ev.get("sweep"):
+                sweep_evidence.append({"address": node["addr"], **ev})
         if lab:
-            hit(node, lab, node["hop"], {"sweep": sweep_evidence[-1] if chain == "btc" else None})
+            hit(node, lab, node["hop"], {"sweep": sweep_evidence[-1] if sweep_evidence else None})
             return True
         # An unlabeled high-degree hub that is not a proven deposit address is a custodial service:
         # its outflows are other people's money, and following them credits a pass-through (§11.2).
@@ -110,6 +116,9 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
             if n_rx >= HUB_MIN_RECEIPTS:
                 flags.append(f"service_hub_boundary:{node['addr']}({n_rx} receipts, hop {node['hop']})")
                 return True
+        elif node["addr"].lower() in prov.truncated:   # more rows than the page cap: a service, not a wallet
+            flags.append(f"service_hub_boundary:{node['addr']}(>{prov.page_cap}k movements, hop {node['hop']})")
+            return True
         return False
 
     lab = reg.best(chain, wallet)
@@ -124,15 +133,17 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
             if calls() >= MAX_CALLS:
                 break
             try:
-                spends, moves = expand_btc(prov, node, until_block) if chain == "btc" else expand_evm(ch, chain, node)
+                spends, moves = (expand_btc(prov, node, until_block) if chain == "btc"
+                                 else expand_evm(prov, node, until_block))
             except Exception as e:  # noqa: BLE001 — record and keep tracing other branches
                 print(f"   ! expand {node['addr']}: {e}")
                 continue
             for m in [m for m in moves if "coinjoin" in m]:
                 flags.append(f"coinjoin_boundary:{m['hash']}({m['coinjoin']}) from {node['addr']} (hop {hop})")
             moves = [m for m in moves if "coinjoin" not in m]
-            for t in spends:
-                so_edges += same_owner_edges(t)
+            if chain == "btc":
+                for t in spends:
+                    so_edges += same_owner_edges(t)
             # Sweep check (§6.2c) on every non-start node before expanding it.
             try:
                 stop = node is not start and check_node(node, spends, moves)
@@ -150,9 +161,12 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
                 child = {"addr": m["to"], "hop": hop, "since": m["block"], "parent": node, "via": m,
                          "asset": m["asset"] if chain != "btc" else None,
                          "utxos": [m["out"]] if m["out"] else None, "utxo_via": {m["out"]: m}}
+                svc = reg.best(chain, k, roles=(MIXER, DEX))
                 lab = reg.best(chain, k)
                 if lab:
                     hit(child, lab, hop)
+                elif svc:   # §9.3: mixer = STOP; DEX = record the swap, 1:1 value linkage broken
+                    flags.append(f"{svc.role}:{reg.entities[svc.entity].name}@{k}(hop {hop}, tx {m['hash']})")
                 elif k in nodes:
                     if m["out"] and nodes[k]["hop"] == hop:  # same-level UTXO merge (keeps its own provenance)
                         nodes[k]["utxos"].append(m["out"])
@@ -185,7 +199,8 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
         reason = f"api-call budget ({MAX_CALLS}) exhausted before the first hit"
     meta = {"until_block": until_block, "label_set_version": reg.version, "partial": any(f.startswith("partial:") for f in flags),
             "same_owner_edges": len(so_edges),
-            "providers": dict(prov.calls_by), "sweep_evidence": sweep_evidence[:10]}
+            "providers": dict(prov.calls_by), "upstream_calls": prov.upstream, "store_hits": prov.store_hits,
+            "sweep_evidence": sweep_evidence[:10]}
     if not hits:
         return {"wallet": wallet, "chain": chain, "result": "UNATTRIBUTED", "hops": None,
                 "api_calls": calls(), "wall_clock_s": wall, "endpoint": None, "role_basis": None,

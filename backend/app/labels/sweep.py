@@ -4,7 +4,7 @@ deposit roles; scripts/tagpacks_inspection.md).
 An address A is a deposit address of entity X when
   (i)  A receives from >= MIN_SENDERS distinct senders, and
   (ii) one of A's first k spends sends >= SWEEP_SHARE of its output value to labeled hot/infra
-       addresses of X.
+       addresses of X (BTC: one tx; EVM: the first k transfers of one asset — evm_sweep_proof).
 Why a share and not "any"/"all" (validated day 1 on real data): "any outflow to X" labeled a
 *customer paying into* BitMEX as a BitMEX deposit address; "all outflows" missed a real Binance
 consolidation that piggy-backed a 0.0097 BTC side output. _selfcheck pins all three cases.
@@ -82,6 +82,45 @@ def btc_sweep_proof(prov, reg: Registry, address: str, spends: list[TxRecord], u
     lab = Label(address, "btc", DEPOSIT, entity, "sweep", SOURCE_TIER["sweep"], "sweep_proven",
                 f"{n} distinct senders; {share:.1%} of tx {g.tx_hash} -> {entity} hot {hot[0]} "
                 f"({hot_lab.basis} <- {hot_lab.provenance})")
+    reg.add_label(lab)
+    return lab, {**ev, "sweep": "proven"}
+
+
+def evm_sweep_proof(prov, reg: Registry, address: str, out_edges, until_block: int,
+                    deposit_edge=None) -> tuple[Label | None, dict]:
+    """Account model: per asset, the first K_SPENDS outgoing movements must send >= SWEEP_SHARE of
+    their value to one entity's hot wallets (a single EVM transfer has one recipient, so the share
+    is taken over the first k spends, not one tx), AND the address must have received from
+    >= MIN_SENDERS distinct senders before the sweep. The entity's own infra (gas top-ups from
+    its feeder wallets) does not count as a sender."""
+    chain = prov.chain
+    by_asset: dict[str, list] = {}
+    for e in out_edges:
+        by_asset.setdefault(e.asset, []).append(e)
+    groups = []
+    for asset, es in sorted(by_asset.items()):
+        first = sorted(es, key=lambda e: (e.block, e.tx_hash, str(e.index)))[:K_SPENDS]
+        groups.append(Outflow(first[-1].tx_hash, first[-1].block, first[-1].ts, asset,
+                              [(e.dst, e.value / 10 ** e.meta["decimals"]) for e in first]))
+    hit = sweep_target(groups, lambda a: reg.hot_entity(chain, a))
+    if not hit:
+        return None, {"sweep": None}
+    entity, share, g = hit
+    hot = max((o for o in g.outputs if reg.hot_entity(chain, o[0]) == entity), key=lambda o: o[1])
+    rx = prov.incoming_before(address, g.block)
+    senders = {e.src for e in rx if reg.hot_entity(chain, e.src) != entity}
+    hot_lab = reg.best(chain, hot[0])
+    ev = {"entity": entity, "share": round(share, 4), "asset": g.asset, "sweep_tx": g.tx_hash, "sweep_ts": g.ts,
+          "hot_wallet": hot[0], "hot_label": f"{hot_lab.basis} <- {hot_lab.provenance}",
+          "distinct_senders": len(senders), "senders_truncated": address.lower() in prov.truncated}
+    if deposit_edge is not None:  # §6.4 deposit-event artifact
+        ev["deposit_event"] = {"tx": deposit_edge.tx_hash, "ts": deposit_edge.ts, "asset": deposit_edge.asset,
+                               "amount": deposit_edge.value / 10 ** deposit_edge.meta["decimals"]}
+    if len(senders) < MIN_SENDERS:
+        return None, {**ev, "sweep": "share_ok_senders_below_min"}
+    lab = Label(address, chain, DEPOSIT, entity, "sweep", SOURCE_TIER["sweep"], "sweep_proven",
+                f"{len(senders)} distinct senders; {share:.1%} of first {K_SPENDS} {g.asset} spends -> {entity} "
+                f"hot {hot[0]} (last {g.tx_hash}; {hot_lab.basis} <- {hot_lab.provenance})")
     reg.add_label(lab)
     return lab, {**ev, "sweep": "proven"}
 

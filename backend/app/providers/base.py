@@ -57,7 +57,7 @@ class Edge:
     asset: str
     block: int
     ts: int
-    index: int | None = None          # vin / vout / log_index — part of the MERGE key (§7.2)
+    index: int | str | None = None    # vin / vout / log_index / trace id — part of the MERGE key (§7.2)
     meta: dict = field(default_factory=dict, compare=False, hash=False)
 
 

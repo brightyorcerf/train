@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS edge (
     dst      text NOT NULL,                 -- address, or tx hash for a FUNDS edge
     kind     text NOT NULL,                 -- native | internal | erc20 | funds | credits
     tx_hash  text NOT NULL,
-    idx      int  NOT NULL,                 -- log_index | trace index | vin | vout; -1 = none (native)
+    idx      text NOT NULL,                 -- log_index | trace id | vin | vout; '' = none (native)
     value    numeric NOT NULL,              -- base units
     asset    text NOT NULL,
     decimals int  NOT NULL,
