@@ -7,7 +7,7 @@ endpoint on free-tier historical data?
 
 Forward BFS, level by level; stops at the first hop level that reaches any labeled endpoint.
 Day 2: a thin CLI over the backend modules —
-  labels   app.labels.ingest.build_registry (ground truth · OFAC · SAHYOG · TagPacks, tiered)
+  labels   app.labels.registry.PgRegistry — a pinned label-set version from Postgres (ingest.persist)
   BTC      app.providers.esplora (Tx hypernodes, change + CoinJoin annotation, failover/breaker)
   sweep    app.labels.sweep (§6.2c: >=90% of a spend to one entity's hot wallets AND >=3 senders)
   cluster  app.labels.propagate (SAME_OWNER from co-inputs; CoinJoin txs excluded)
@@ -24,9 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from day1_chain import REPO, Chain  # noqa: E402
 
-from app.labels.ingest import build_registry  # noqa: E402  (day1_chain put backend/ on sys.path)
 from app.labels.propagate import propagate, same_owner_edges  # noqa: E402
-from app.labels.registry import DEPOSIT, SANCTIONED, Label  # noqa: E402
+from app.labels.registry import DEPOSIT, SANCTIONED, Label, PgRegistry  # noqa: E402
 from app.labels.sweep import Outflow, btc_sweep_proof, sweep_target  # noqa: E402
 from app.providers.esplora import EsploraProvider, ProviderError  # noqa: E402
 
@@ -71,10 +70,10 @@ def expand_evm(ch: Chain, chain: str, node: dict):
     return [], [{**m, "out": None, "change": None, "prev": node.get("via")} for m in moves]
 
 
-def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5):
+def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5, label_set=None):
     t0 = time.time()
-    reg = build_registry(chains=(chain,))
-    print(f"labels: {sum(map(len, reg.labels.values()))} across {len(reg.entities)} entities ({time.time() - t0:.1f}s)")
+    reg = PgRegistry(label_set)
+    print(f"labels: {reg.version} — {reg.n_labels} across {len(reg.entities)} entities ({time.time() - t0:.1f}s)")
     ch, prov = Chain(), EsploraProvider()
     calls = lambda: ch.calls + prov.calls  # noqa: E731
     start = {"addr": wallet, "hop": 0, "since": since_block, "parent": None, "via": None}
@@ -184,7 +183,7 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5)
     hits = [h for h in hits if h["calls_at_hit"] <= MAX_CALLS]
     if not hits and reason == "hit":
         reason = f"api-call budget ({MAX_CALLS}) exhausted before the first hit"
-    meta = {"until_block": until_block, "partial": any(f.startswith("partial:") for f in flags),
+    meta = {"until_block": until_block, "label_set_version": reg.version, "partial": any(f.startswith("partial:") for f in flags),
             "same_owner_edges": len(so_edges),
             "providers": dict(prov.calls_by), "sweep_evidence": sweep_evidence[:10]}
     if not hits:

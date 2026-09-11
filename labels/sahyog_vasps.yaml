@@ -10,7 +10,15 @@
   jurisdiction: IN
   sahyog: confirmed
   source: https://crypto.news/bitget-joins-indias-i4c-sahyog-portal-to-support-digital-asset-law-enforcement/
-  addresses: []
+  addresses:
+    # WazirX's own incident report names it; a 4-of-6 Safe multisig (ETH hot wallet). Drained
+    # 2024-07-18 06:19 UTC after an implementation swap — WazirX infra BEFORE that, attacker-controlled
+    # after. ponytail: validity window is in the note only, not enforced; add per-label valid_until
+    # if a trace ever needs a post-hack snapshot through this wallet.
+    - address: "0x27fD43BABfbe83a81d14665b1a6fB8030A60C9b4"
+      chain: eth
+      role: hot
+      source: https://wazirx.com/blog/preliminary-report-cyber-attack-on-wazirx-multisig-wallet/ (valid until 2024-07-18)
 - entity: kucoin
   name: KuCoin
   jurisdiction: SC
@@ -22,10 +30,18 @@
   jurisdiction: AE
   sahyog: confirmed
   source: https://crypto.news/bitget-joins-indias-i4c-sahyog-portal-to-support-digital-asset-law-enforcement/
-  addresses: []
+  addresses:
+    # Bybit's ETH multisig cold wallet (Safe proxy), drained 2025-02-21 14:16 UTC (Lazarus).
+    # Same validity caveat as WazirX. KuCoin + Bybit reserve wallets also arrive via TagPacks.
+    - address: "0x1Db92e2EeBC8E0c075a02BeA49a2935BcD2dFCF4"
+      chain: eth
+      role: hot
+      source: https://nccgroup.com/research-blog/in-depth-technical-analysis-of-the-bybit-hack (valid until 2025-02-21)
 - entity: bitget
   name: Bitget
   jurisdiction: SC
   sahyog: confirmed
   source: https://www.bitget.com/blog/articles/bitget-sahyog-india-cybercrime-cooperation
+  # Bitget publishes PoR wallets only on a JS page (bitget.com/proof-of-reserves) that refused connections
+  # from our network on 2026-09-12; its GitHub PoR repo carries no addresses. None added until sourced.
   addresses: []

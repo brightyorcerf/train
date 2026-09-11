@@ -27,10 +27,5 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
 
-    @property
-    def postgres_dsn(self) -> str:
-        return (f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
-                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}")
-
 
 settings = Settings()

@@ -1,22 +1,30 @@
-"""Load every label source into a Registry (§6). Flat files only; Postgres/Neo4j writes come later.
+"""Load every label source into a Registry (§6), then persist it to Postgres as one immutable,
+content-hashed label-set version (§12).
+
+    python -m app.labels.ingest        # from backend/: build + persist; prints the pinned version
 
 Sources and tiers (registry.SOURCE_TIER):
   ground_truth  labels/ground_truth_deposits.yaml   our manufactured deposits (+ their sweep targets)
   ofac          labels/ofac_sdn_crypto.csv          sanctioned; the OFAC_VASPS parties are exchanges
   curated       labels/sahyog_vasps.yaml            SAHYOG status (+ any sourced curated addresses)
   tagpacks      vendor/graphsense-tagpacks          actor registry; exchange-published reserve/hot
-                                                    wallets (exchange-wallets-*, binance.yaml)
+                                                    wallets (exchange-wallets-*, binance.yaml); per-tag
+                                                    exchange / mixer / CoinJoin / DEX categories
 """
 import csv
+import hashlib
+import json
+import os
 import re
 import sys
 from pathlib import Path
 
 import yaml
 
-from app.labels.registry import DEPOSIT, HOT, SANCTIONED, SOURCE_TIER, Label, Registry, norm
+from app.labels.registry import DEPOSIT, DEX, HOT, MIXER, SANCTIONED, SOURCE_TIER, Label, Registry, addr_key, norm
 
-REPO = Path(__file__).resolve().parents[3]
+# Containers mount labels/ and vendor/ under REPO_ROOT (compose); host scripts use the checkout.
+REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])
 LABELS = REPO / "labels"
 PACKS = REPO / "vendor" / "graphsense-tagpacks"
 TAGPACKS_COMMIT = "7f9a5d1f"  # inspected 2026-09-11 (scripts/tagpacks_inspection.md)
@@ -46,7 +54,8 @@ def load_actors(reg: Registry) -> None:
 
 def load_sahyog(reg: Registry) -> None:
     for v in yaml.safe_load((LABELS / "sahyog_vasps.yaml").read_text()) or []:
-        reg.add_entity(v["entity"], v["name"], type="exchange", sahyog=v["sahyog"])
+        reg.add_entity(v["entity"], v["name"], type="exchange", sahyog=v["sahyog"],
+                       jurisdiction=[v["jurisdiction"]] if v.get("jurisdiction") else [])
         for a in v.get("addresses") or []:
             for c in _chains_for(a["address"], a["chain"]):
                 reg.add_label(Label(a["address"], c, a["role"], v["entity"], "curated", SOURCE_TIER["curated"],
@@ -102,27 +111,35 @@ def load_tagpacks(reg: Registry, chains=("btc",) + EVM) -> None:
                     reg.add_label(Label(addr, c, HOT, eid, "tagpacks", SOURCE_TIER["tagpacks"], "labeled", prov))
 
 
-def load_tagpacks_exchange_tags(reg: Registry, chains=("btc",) + EVM) -> None:
-    """Per-tag `category: exchange` addresses from every other pack (walletexplorer, chaininfo,
-    richest_addresses, hacks, interpol-real_services, …). Exchange-controlled but role unknown -> HOT
-    (infra, downgraded claim). web_crawl packs drop to the heuristic tier."""
+# Per-tag categories from every other pack -> role. Exchange-controlled but role unknown -> HOT (infra,
+# downgraded claim); mixers / CoinJoin coordinators / DEX contracts are §9.3 trace boundaries.
+CATEGORY_ROLE = {"exchange": HOT, "mixing_service": MIXER, "coinjoin": MIXER, "defi_dex": DEX}
+
+
+def load_tagpacks_category_tags(reg: Registry, chains=("btc",) + EVM) -> None:
+    """walletexplorer, chaininfo, richest_addresses, hacks, interpol-real_services, tornado_cash,
+    defi-protocols-csh, … ; web_crawl packs drop to the heuristic tier."""
     done = {p.name for p in (PACKS / "packs").glob("exchange-wallets-*.yaml")} | {"binance.yaml"}
     for p in sorted((PACKS / "packs").glob("*.yaml")):
-        if p.name in done or "category: exchange" not in (text := p.read_text()):
+        text = p.read_text()
+        if p.name in done or not any(f"category: {c}" in text for c in CATEGORY_ROLE):
             continue
         pack = yaml.load(text, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
         tier = "heuristic" if pack.get("confidence") == "web_crawl" else "tagpacks"
         for t in pack.get("tags") or []:
-            if t.get("category", pack.get("category")) != "exchange":
-                continue
+            cat = t.get("category", pack.get("category"))
+            role = CATEGORY_ROLE.get(cat)
             cur = t.get("currency", pack.get("currency"))
             chain = "btc" if cur == "BTC" else "eth" if cur == "ETH" else None
-            eid = (t.get("actor") or pack.get("actor") or reg.resolve(t.get("label", "")))
-            if chain is None or not eid:
+            name = t.get("label") or pack.get("label") or ""
+            eid = t.get("actor") or pack.get("actor") or reg.resolve(name) or (role != HOT and norm(name))
+            if role is None or chain is None or not eid:
                 continue
+            if eid not in reg.entities:
+                reg.add_entity(eid, name or eid, type=cat)
             for c in _chains_for(str(t["address"]), chain):
                 if c in chains:
-                    reg.add_label(Label(str(t["address"]), c, HOT, eid, tier, SOURCE_TIER[tier], "labeled",
+                    reg.add_label(Label(str(t["address"]), c, role, eid, tier, SOURCE_TIER[tier], "labeled",
                                         f"graphsense-tagpacks@{TAGPACKS_COMMIT}/{p.name} '{t.get('label')}' "
                                         f"<- {t.get('source', pack.get('source'))}"))
 
@@ -134,8 +151,53 @@ def build_registry(chains=("btc",) + EVM) -> Registry:
     load_ofac(reg)
     load_ground_truth(reg)
     load_tagpacks(reg, chains)
-    load_tagpacks_exchange_tags(reg, chains)
+    load_tagpacks_category_tags(reg, chains)
     return reg
+
+
+def _rows(reg: Registry):
+    labels = [(l.chain, l.address, addr_key(l.chain, l.address), l.role, l.entity, l.source, l.confidence,
+               l.basis, l.provenance) for labs in reg.labels.values() for l in labs]
+    ents = [(e.id, e.name, e.type, json.dumps(sorted(e.jurisdiction)), json.dumps(sorted(e.aliases)), e.sahyog)
+            for e in reg.entities.values()]
+    return labels, ents
+
+
+def label_set_version(reg: Registry) -> str:
+    """Same label content -> same version, whatever the build order (canonical sorted rows)."""
+    labels, ents = _rows(reg)
+    h = hashlib.sha256()
+    for r in sorted(ents) + sorted(labels):
+        h.update(json.dumps(r, separators=(",", ":")).encode() + b"\n")
+    return "ls-" + h.hexdigest()[:12]
+
+
+def _file_hashes() -> dict:
+    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:12] for p in sorted(LABELS.glob("*")) if p.is_file()}
+
+
+def persist(reg: Registry, conn=None) -> tuple[str, bool]:
+    """Write reg as a label-set version. Idempotent: an existing version is left untouched.
+    -> (version, created)."""
+    from app.db import connect, init_schema
+    init_schema()
+    version = label_set_version(reg)
+    labels, ents = _rows(reg)
+    with conn or connect() as c:
+        if c.execute("SELECT 1 FROM label_set WHERE version = %s", (version,)).fetchone():
+            return version, False
+        c.execute("INSERT INTO label_set (version, n_labels, n_entities, sources) VALUES (%s, %s, %s, %s)",
+                  (version, len(labels), len(ents),
+                   json.dumps({"tagpacks_commit": TAGPACKS_COMMIT, "labels_dir": _file_hashes()})))
+        with c.cursor().copy("COPY vasp (label_set_version, id, name, type, jurisdiction, aliases, sahyog) "
+                             "FROM STDIN") as cp:
+            for r in ents:
+                cp.write_row((version, *r))
+        with c.cursor().copy("COPY address_label (label_set_version, chain, address, addr_key, role, entity_id, "
+                             "source, confidence, basis, provenance) FROM STDIN") as cp:
+            for r in labels:   # registry insertion order -> ascending ids -> deterministic tie order
+                cp.write_row((version, *r))
+    return version, True
 
 
 if __name__ == "__main__":
@@ -143,6 +205,9 @@ if __name__ == "__main__":
     t = time.time()
     r = build_registry()
     print(f"{len(r.entities)} entities, {sum(map(len, r.labels.values()))} labels in {time.time() - t:.1f}s")
+    v, created = persist(r)
+    print(f"label set {v}: {'persisted' if created else 'already in Postgres (unchanged content)'} "
+          f"({time.time() - t:.1f}s)")
     for k, v in r.stats().items():
         print(f"  {k:<32} {v}")
     for q in ("Binance 14", "WazirX", "KUCOIN", "GARANTEX EUROPE OU"):

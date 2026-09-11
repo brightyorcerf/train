@@ -45,7 +45,7 @@ class EsploraProvider(BlockchainProvider):
         up = [b for b in self.bases if self.down_until.get(b, 0) <= now]
         # all tripped -> half-open: retry whichever recovers first rather than failing outright
         order = up or [min(self.bases, key=lambda b: self.down_until[b])]
-        err = None
+        errs = []
         for base in order:
             wait = self._last.get(base, 0) + self.min_interval - time.time()
             if wait > 0:
@@ -56,7 +56,7 @@ class EsploraProvider(BlockchainProvider):
             try:
                 r = self._http.get(base + path)
             except httpx.HTTPError as e:
-                err = f"{base}: {type(e).__name__}"
+                errs.append(f"{base}: {type(e).__name__}")
                 self._trip(base)
                 continue
             if time.time() - self._last[base] > self.slow:
@@ -66,10 +66,10 @@ class EsploraProvider(BlockchainProvider):
                 if cache:
                     self._cache[path] = j
                 return j
-            err = f"{base}: HTTP {r.status_code} {r.text[:80]}"
+            errs.append(f"{base}: HTTP {r.status_code} {r.text[:80]}")
             if r.status_code == 429 or r.status_code >= 500:
                 self._trip(base)
-        raise ProviderError(f"GET {path} failed on every provider — {err}")
+        raise ProviderError(f"GET {path} failed on every provider — {' | '.join(errs) or 'all tripped'}")
 
     def _trip(self, base: str) -> None:
         self.down_until[base] = time.time() + self.cooldown

@@ -1,7 +1,11 @@
 """VASP entity registry + address labels + entity resolution (§6, §7.6 vasp / address_label).
 
-In-memory for now; ingest.py fills it from labels/* and the pinned TagPacks clone. Postgres
-persistence (address_label, vasp tables) lands with the DB layer.
+Registry is the in-memory form ingest.py builds from labels/* and the pinned TagPacks clone;
+ingest.persist() writes it to Postgres as one immutable, content-hashed label-set version.
+PgRegistry reads a pinned version back (what traces use): entities are loaded whole, address
+labels are looked up on demand, and labels a trace derives (sweep-proven, cluster-propagated) live
+in an in-memory overlay — they never leak into the pinned set, so a case's result can't depend on
+which cases ran before it (§12).
 """
 import re
 from dataclasses import dataclass, field
@@ -10,6 +14,7 @@ from dataclasses import dataclass, field
 SOURCE_TIER = {"ground_truth": 1.0, "ofac": 1.0, "curated": 0.8, "tagpacks": 0.6, "sweep": 0.5,
                "heuristic": 0.3}
 DEPOSIT, HOT, SANCTIONED = "deposit", "hot", "sanctioned"   # §6.3 roles (hot = any VASP infra)
+MIXER, DEX = "mixer", "dex"                                   # §9.3 service-node boundaries
 
 
 def addr_key(chain: str, address: str) -> str:
@@ -93,6 +98,35 @@ class Registry:
             for l in labs:
                 out[f"{l.chain}:{l.role}:{l.source}"] = out.get(f"{l.chain}:{l.role}:{l.source}", 0) + 1
         return dict(sorted(out.items()))
+
+
+class PgRegistry(Registry):
+    """A pinned label-set version from Postgres (None = latest)."""
+
+    def __init__(self, version: str | None = None, conn=None):
+        super().__init__()   # self.labels = the trace-local overlay
+        from app.db import connect
+        self.conn = conn or connect(autocommit=True)
+        row = self.conn.execute(
+            "SELECT version, n_labels FROM label_set " + ("WHERE version = %s" if version else
+                                                          "ORDER BY created_at DESC LIMIT 1"),
+            (version,) if version else ()).fetchone()
+        if not row:
+            raise LookupError(f"label set {version or '(any)'} not in Postgres — run python -m app.labels.ingest")
+        self.version, self.n_labels = row
+        for id, name, type, jur, aliases, sahyog in self.conn.execute(
+                "SELECT id, name, type, jurisdiction, aliases, sahyog FROM vasp WHERE label_set_version = %s",
+                (self.version,)):
+            self.add_entity(id, name, type=type, jurisdiction=jur, aliases=set(aliases), sahyog=sahyog)
+        self._pinned: dict[tuple[str, str], list[Label]] = {}
+
+    def lookup(self, chain: str, address: str) -> list[Label]:
+        k = (chain, addr_key(chain, address))
+        if k not in self._pinned:  # ponytail: unbounded per-trace cache; a trace touches ~10^3 addresses
+            self._pinned[k] = [Label(*r) for r in self.conn.execute(
+                "SELECT address, chain, role, entity_id, source, confidence, basis, provenance FROM address_label "
+                "WHERE label_set_version = %s AND chain = %s AND addr_key = %s ORDER BY id", (self.version, *k))]
+        return sorted(self._pinned[k] + self.labels.get(k, []), key=lambda l: -l.confidence)
 
 
 def _selfcheck():
