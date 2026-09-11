@@ -1,0 +1,31 @@
+{
+  "public_case": {
+    "wallet": "1Ljk8RNNabkZ9bfDYQBn98XfFozJhTjqcZ",
+    "chain": "btc",
+    "result": "ATTRIBUTED",
+    "hops": 1,
+    "api_calls": 14,
+    "wall_clock_s": 8.8,
+    "endpoint": "1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP",
+    "entity": "binance",
+    "role": "deposit",
+    "role_basis": "sweep_proven",
+    "label_source": "sweeps to 1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s in tx 0d813f9f09210133e9e96b9ad373b3544af27e502a7279790dfc7a608f04df31; that address: hot(exchange-published) <- graphsense-tagpacks/binance.yaml <- https://www.coindesk.com/hackers-steal-40-7-million-in-bitcoin-from-crypto-exchange-binance",
+    "path": [
+      {
+        "from": "1Ljk8RNNabkZ9bfDYQBn98XfFozJhTjqcZ",
+        "to": "1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP",
+        "tx": "e995334f2e7b81e05e222ff0fc033bd079c49be6b3f022ab127f5e4cda637b82",
+        "value": 40.5,
+        "asset": "BTC",
+        "ts": 1587945565
+      }
+    ],
+    "addresses_seen": 9,
+    "flags": [
+      "ofac:Zhdanova Ekaterina Valeryevna@3685sEusmTwZBiKJ4cgV73EAhpVD1nbgbe(hop 1)"
+    ],
+    "other_hits": [],
+    "source_doc": "Start wallet: OFAC SDN designation of Ekaterina Zhdanova, 2023-11-03 (https://home.treasury.gov/news/press-releases/jy1874; address in labels/ofac_sdn_crypto.csv). Flow narrative 'funds transferred to deposit addresses at mainstream exchanges': https://www.chainalysis.com/blog/ofac-russia-crypto-money-laundering-sanctions-2023/. Endpoint entity: Binance BTC hot wallet 1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s (GraphSense binance.yaml <- https://www.coindesk.com/hackers-steal-40-7-million-in-bitcoin-from-crypto-exchange-binance); deposit role proven by sweep: endpoint is 1 of 34 co-inputs in consolidation tx 0d813f9f...df31 paying 78.95 BTC to that hot wallet."
+  }
+}
