@@ -27,5 +27,126 @@
     ],
     "other_hits": [],
     "source_doc": "Start wallet: OFAC SDN designation of Ekaterina Zhdanova, 2023-11-03 (https://home.treasury.gov/news/press-releases/jy1874; address in labels/ofac_sdn_crypto.csv). Flow narrative 'funds transferred to deposit addresses at mainstream exchanges': https://www.chainalysis.com/blog/ofac-russia-crypto-money-laundering-sanctions-2023/. Endpoint entity: Binance BTC hot wallet 1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s (GraphSense binance.yaml <- https://www.coindesk.com/hackers-steal-40-7-million-in-bitcoin-from-crypto-exchange-binance); deposit role proven by sweep: endpoint is 1 of 34 co-inputs in consolidation tx 0d813f9f...df31 paying 78.95 BTC to that hot wallet."
+  },
+  "discovery_case": {
+    "wallet": "3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD",
+    "chain": "btc",
+    "result": "ATTRIBUTED",
+    "hops": 4,
+    "api_calls": 201,
+    "wall_clock_s": 106.4,
+    "endpoint": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
+    "calls_at_hit": 130,
+    "entity": "binance",
+    "entity_sahyog": "unknown",
+    "role": "deposit",
+    "role_basis": "sweep_proven",
+    "label_confidence": 0.5,
+    "label_source": "32 distinct senders; 100.0% of tx 68c06a78c53fe8a226c0dc47ba37153a133ecf901372d232661bc958bdd1c08e -> binance hot 1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s (labeled <- graphsense-tagpacks@7f9a5d1f/binance.yaml <- https://www.coindesk.com/hackers-steal-40-7-million-in-bitcoin-from-crypto-exchange-binance)",
+    "deposit_event": {
+      "tx": "6cdba4602f557cf4af8acb05e6e09172ed1d49cbbee1adda2f37b2f89c487cbf",
+      "ts": 1587195854,
+      "amount_btc": 2.0
+    },
+    "path": [
+      {
+        "from": "3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD",
+        "to": "3AL6TbJKMjQ6i1cT9SoSs7AigKxAVVW3MD",
+        "tx": "9fce609bd6573fa0aebfe425906bc662047ff8b155c3665370a41987b9b33a51",
+        "value": 17.58422071,
+        "asset": "BTC",
+        "ts": 1587095525,
+        "change": 0.85
+      },
+      {
+        "from": "3AL6TbJKMjQ6i1cT9SoSs7AigKxAVVW3MD",
+        "to": "3PTeFYdf5ZKR6a92WJRYeykEqe8swCKaXm",
+        "tx": "a62fe5750451044806ae2483831c83a2739b7daec990e23dbbb2b34ac263caf3",
+        "value": 15.69834482,
+        "asset": "BTC",
+        "ts": 1587173107,
+        "change": 0.7
+      },
+      {
+        "from": "3PTeFYdf5ZKR6a92WJRYeykEqe8swCKaXm",
+        "to": "1HUGgSqL5No81V2MBosgSSCPKV8JKmHUue",
+        "tx": "602aec5017a8c0b04cd5885569b2ccd54f151ce007e5da8247c38b1ab5e14bc9",
+        "value": 2.0913,
+        "asset": "BTC",
+        "ts": 1587189653
+      },
+      {
+        "from": "1HUGgSqL5No81V2MBosgSSCPKV8JKmHUue",
+        "to": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
+        "tx": "6cdba4602f557cf4af8acb05e6e09172ed1d49cbbee1adda2f37b2f89c487cbf",
+        "value": 2.0,
+        "asset": "BTC",
+        "ts": 1587195854
+      }
+    ],
+    "addresses_seen": 96,
+    "flags": [
+      "ofac:Polyanin Yevgeniy Igorevich@3LkPxybBzP7EkLmg8fH2jDhxDqaZuu59H3(hop 2)"
+    ],
+    "other_hits": [
+      {
+        "result": "ATTRIBUTED",
+        "endpoint": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
+        "entity": "binance",
+        "hops": 5,
+        "role_basis": "sweep_proven"
+      },
+      {
+        "result": "ATTRIBUTED",
+        "endpoint": "1K7z2jWsxNQUs3xrxvVMLjnZQu7X33bxUf",
+        "entity": "binance",
+        "hops": 4,
+        "role_basis": "sweep_proven"
+      }
+    ],
+    "until_block": 966553,
+    "partial": false,
+    "same_owner_edges": 166,
+    "providers": {
+      "https://mempool.space/api": 51,
+      "https://blockstream.info/api": 150
+    },
+    "sweep_evidence": [
+      {
+        "address": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
+        "entity": "binance",
+        "share": 0.9997,
+        "sweep_tx": "68c06a78c53fe8a226c0dc47ba37153a133ecf901372d232661bc958bdd1c08e",
+        "sweep_ts": 1587204359,
+        "hot_wallet": "1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s",
+        "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/binance.yaml <- https://www.coindesk.com/hackers-steal-40-7-million-in-bitcoin-from-crypto-exchange-binance",
+        "distinct_senders": 32,
+        "senders_truncated": true,
+        "deposit_event": {
+          "tx": "6cdba4602f557cf4af8acb05e6e09172ed1d49cbbee1adda2f37b2f89c487cbf",
+          "ts": 1587195854,
+          "amount_btc": 2.0
+        },
+        "sweep": "proven"
+      },
+      {
+        "address": "1K7z2jWsxNQUs3xrxvVMLjnZQu7X33bxUf",
+        "entity": "binance",
+        "share": 0.9993,
+        "sweep_tx": "bda7c9f9a641ef9150be01e183bd1ff313cd62d64488184409619ca229caa818",
+        "sweep_ts": 1607896979,
+        "hot_wallet": "1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s",
+        "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/binance.yaml <- https://www.coindesk.com/hackers-steal-40-7-million-in-bitcoin-from-crypto-exchange-binance",
+        "distinct_senders": 12,
+        "senders_truncated": false,
+        "deposit_event": {
+          "tx": "d481e638c8db5528737df0abbb1fd5d9980c36088be96c88d6d1cb48e1a1a45c",
+          "ts": 1607889076,
+          "amount_btc": 0.98432
+        },
+        "sweep": "proven"
+      }
+    ],
+    "source_doc": "Start: OFAC SDN Yevgeniy Polyanin (REvil/Sodinokibi), XBT 3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD listed in Treasury jy0471 2021-11-08 https://home.treasury.gov/news/press-releases/jy0471 ; Chainalysis https://www.chainalysis.com/blog/ofac-sanction-chatex-revil-sodinokibi-november-2021/ . Path: 2-hop peel chain (change-detected) -> 1HUGgSq -> 17wFjw, April 2020. Endpoint: sweep-proven Binance deposit (>=32 senders; 99.97% of sweep 68c06a78 into Binance hot 1NDyJt, graphsense binance.yaml <- CoinDesk 2019 hack report). Bitfinex (candidate 1) did not resolve: peel endpoints are unnamed services."
   }
 }

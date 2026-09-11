@@ -1,0 +1,45 @@
+# Eval fixtures (§11.2): documented suspects, outcomes verified on free historical data (day 2,
+# snapshot BTC block 966553, scripts/day1_verify.py --max-hops 5). Weights are NOT tuned on these.
+# expect: ATTRIBUTED (discovery) | UNATTRIBUTED (honest non-answer / confuser that must not be crowned)
+- id: polyanin-revil-binance
+  suspect_addr: 3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD
+  chain: btc
+  expect: ATTRIBUTED
+  expected_entity: binance
+  min_hops: 4          # 2 peel-chain change hops + 2 payment hops
+  endpoint: 17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE   # sweep_proven
+  source_doc: https://home.treasury.gov/news/press-releases/jy0471
+- id: zhdanova-binance
+  suspect_addr: 1Ljk8RNNabkZ9bfDYQBn98XfFozJhTjqcZ
+  chain: btc
+  expect: ATTRIBUTED
+  expected_entity: binance
+  min_hops: 1          # shallow — validates known-OFAC flow, not discovery
+  endpoint: 1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP
+  source_doc: https://home.treasury.gov/news/press-releases/jy1874
+- id: lijiadong-lazarus-binance
+  suspect_addr: 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE
+  chain: btc
+  expect: ATTRIBUTED
+  expected_entity: binance
+  min_hops: 3
+  endpoint: 18QHggCdfXfZXQR2aw6Whxz8FiSucanQrg
+  caveat: hops 1-2 are 8-in/19-out and 14-in/20-out batch txs from a 492-receipt address — may be a pass-through via
+    an exchange hot wallet (below the 1,000-receipt hub threshold). Verify before crowning.
+  source_doc: OFAC SDN 2020-03-02 (Tian Yinyin / Li Jiadong, Lazarus laundering)
+- id: andreyev-hub-confuser
+  suspect_addr: 1AeSq93WDNdLoEJ92sex7T8xQZoYYm8BtS
+  chain: btc
+  expect: UNATTRIBUTED
+  why: hop 1 pays a 77,195-receipt unlabeled service hub; a Binance hit downstream of it is a
+    pass-through (the pre-hub-policy engine wrongly crowned Binance at 3 hops)
+  source_doc: OFAC SDN 2020-09-10 (Andreyev Anton Nikolaeyvich)
+- id: bitfinex-2016-unnamed-services
+  suspect_addr: 1HpaHr2pQmVPuFWwNKm7hqjndQPMULNYz5
+  chain: btc
+  until_block: 719000   # before the 2022-02-01 government seizure
+  expect: UNATTRIBUTED
+  why: Jan-2017 peel chain reaches service deposit addresses (1XAC5T8…, 174sinh…) at hops 4 and 9 whose
+    sweep targets are unlabeled in TagPacks and unnamed on WalletExplorer; DOJ names them only as
+    "VCE 1-10" / AlphaBay. Honest Case-B-style boundary.
+  source_doc: https://www.justice.gov/opa/press-release/file/1470186/download (statement of facts, 22-mj-22)

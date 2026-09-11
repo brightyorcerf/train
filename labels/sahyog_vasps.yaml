@@ -1,0 +1,31 @@
+# SAHYOG-onboarded VASPs (§6.2a, §17) — curated. Only entries with a public source are listed.
+# "45+ VASPs onboarded" is public; the full list is not. Add an entity only with a citable source.
+#
+# entity: canonical id (matches graphsense actorpack ids, see labels/registry.py)
+# addresses: curated deposit / hot / withdrawal addresses — ONLY with provenance.
+#   Our own manufactured deposits live in ground_truth_deposits.yaml, not here.
+#   Exchange-published reserve/hot wallets come from TagPacks at a lower tier (ingest.py).
+- entity: wazirx
+  name: WazirX
+  jurisdiction: IN
+  sahyog: confirmed
+  source: https://crypto.news/bitget-joins-indias-i4c-sahyog-portal-to-support-digital-asset-law-enforcement/
+  addresses: []
+- entity: kucoin
+  name: KuCoin
+  jurisdiction: SC
+  sahyog: confirmed
+  source: https://crypto.news/bitget-joins-indias-i4c-sahyog-portal-to-support-digital-asset-law-enforcement/
+  addresses: []
+- entity: bybit
+  name: Bybit
+  jurisdiction: AE
+  sahyog: confirmed
+  source: https://crypto.news/bitget-joins-indias-i4c-sahyog-portal-to-support-digital-asset-law-enforcement/
+  addresses: []
+- entity: bitget
+  name: Bitget
+  jurisdiction: SC
+  sahyog: confirmed
+  source: https://www.bitget.com/blog/articles/bitget-sahyog-india-cybercrime-cooperation
+  addresses: []
