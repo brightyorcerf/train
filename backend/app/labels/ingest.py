@@ -21,7 +21,8 @@ from pathlib import Path
 
 import yaml
 
-from app.labels.registry import DEPOSIT, DEX, HOT, MIXER, SANCTIONED, SOURCE_TIER, Label, Registry, addr_key, norm
+from app.labels.registry import (DEPOSIT, DEX, HOT, MIXER, SANCTIONED, SOURCE_TIER, TOKEN, Label, Registry,
+                                 addr_key, norm)
 
 # Containers mount labels/ and vendor/ under REPO_ROOT (compose); host scripts use the checkout.
 REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])
@@ -144,6 +145,52 @@ def load_tagpacks_category_tags(reg: Registry, chains=("btc",) + EVM) -> None:
                                         f"<- {t.get('source', pack.get('source'))}"))
 
 
+def load_bridges(reg: Registry) -> None:
+    """Hand-curated cross-chain bridges (§9.3). Pinned to the chain they were curated on — an EVM
+    address is the same key everywhere, but the Polygon PoS bridge on Polygon is not that bridge."""
+    from app.boundary.bridge import entities as bridge_names  # noqa: PLC0415
+    from app.boundary.bridge import labels as bridge_labels  # noqa: PLC0415
+    names = bridge_names()
+    for l in bridge_labels():
+        reg.add_entity(l.entity, names.get(l.entity, l.entity), type="bridge")
+        reg.add_label(l)
+
+
+def load_polygon_wallets(reg: Registry) -> None:
+    """Polygon-specific exchange wallets — the EVM mirror does not cover them (see the file header)."""
+    p = LABELS / "polygon_exchange_wallets.yaml"
+    for v in (yaml.safe_load(p.read_text()) or []) if p.exists() else []:
+        reg.add_entity(v["entity"], v["name"], type="exchange")
+        tier = v.get("tier", "heuristic")
+        for a in v.get("addresses") or []:
+            prov = f"{a['source']} ({a.get('tag', '')}); corroborated on-chain: {' '.join(a.get('verified', '').split())}"
+            reg.add_label(Label(a["address"], a["chain"], a["role"], v["entity"], tier, SOURCE_TIER[tier],
+                                "labeled", prov))
+
+
+def suppress_token_contracts(reg: Registry) -> int:
+    """A token contract can never be a sweep target, a deposit address, or a service boundary (§6.2c).
+
+    TagPacks tags token contracts with their issuer's name ("BitgetToken (BGB)", "KuCoin Token (KCS)",
+    "Binance: BNB Token"), and that became a `hot` label — i.e. a legitimate sweep target. Any address
+    that sent tokens there would then be "proven" that exchange's deposit address. Runs LAST so it can
+    strip labels every other source added; the addresses were confirmed by on-chain evidence, not by
+    their names (labels/token_contracts.yaml)."""
+    p = LABELS / "token_contracts.yaml"
+    n = 0
+    for t in (yaml.safe_load(p.read_text()) or []) if p.exists() else []:
+        for c in _chains_for(t["address"], t.get("chain", "eth")):
+            k = (c, addr_key(c, t["address"]))
+            kept = [l for l in reg.labels.get(k, []) if l.role not in (HOT, DEPOSIT, DEX)]
+            n += len(reg.labels.get(k, [])) - len(kept)
+            reg.labels[k] = kept
+            reg.add_label(Label(t["address"], c, TOKEN, t.get("tagged_entity") or "unknown", "curated",
+                                SOURCE_TIER["curated"], "labeled",
+                                f"token contract (on-chain verified 2026-09-12), tagged {t.get('tag')!r} "
+                                f"<- labels/token_contracts.yaml"))
+    return n
+
+
 def build_registry(chains=("btc",) + EVM) -> Registry:
     reg = Registry()
     load_actors(reg)
@@ -152,6 +199,9 @@ def build_registry(chains=("btc",) + EVM) -> Registry:
     load_ground_truth(reg)
     load_tagpacks(reg, chains)
     load_tagpacks_category_tags(reg, chains)
+    load_bridges(reg)
+    load_polygon_wallets(reg)
+    suppress_token_contracts(reg)   # last: it strips what the sources above got wrong
     return reg
 
 

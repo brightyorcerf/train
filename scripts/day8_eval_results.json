@@ -1,0 +1,164 @@
+[
+  {
+    "id": "polyanin-revil-binance",
+    "chain": "btc",
+    "expect": "ATTRIBUTED",
+    "expected_entity": "binance",
+    "state": "ATTRIBUTED",
+    "recommended": "binance",
+    "ambiguous": false,
+    "ranked": [
+      [
+        "binance",
+        69
+      ]
+    ],
+    "hops": 4,
+    "min_hops": 4,
+    "endpoint": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
+    "expected_endpoint": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
+    "calls": 200,
+    "upstream": 0,
+    "store_hits": 200,
+    "wall_s": 2.3,
+    "flags": [
+      "ofac:Polyanin Yevgeniy Igorevich@3LkPxybBzP7EkLmg8fH2jDhxDqaZuu59H3(hop 2)"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
+    "id": "zhdanova-binance",
+    "chain": "btc",
+    "expect": "ATTRIBUTED",
+    "expected_entity": "binance",
+    "state": "ATTRIBUTED",
+    "recommended": "binance",
+    "ambiguous": false,
+    "ranked": [
+      [
+        "binance",
+        70
+      ]
+    ],
+    "hops": 1,
+    "min_hops": 1,
+    "endpoint": "1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP",
+    "expected_endpoint": "1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP",
+    "calls": 40,
+    "upstream": 0,
+    "store_hits": 35,
+    "wall_s": 0.4,
+    "flags": [
+      "partial:provider_unavailable at 32LSX4XUTYdL1a6XmgzNuBmTDBpwboE9M8 (hop 3): offline: /tx/d046306fd006d5c48623f37f993e6b5a76e4458ab3d741a1e1bf9b62f97e134d/outspend/0 not in the raw store (scopes ['",
+      "partial:provider_unavailable at 3EPvxq3c3YFWvfGjb85ofB7m3gKSsQPB62 (hop 3): offline: /tx/d046306fd006d5c48623f37f993e6b5a76e4458ab3d741a1e1bf9b62f97e134d/outspend/1 not in the raw store (scopes ['",
+      "partial:provider_unavailable at 3HjLLrGCZd6mt6rJ9ybmtj4PsAaCHpjdzc (hop 3): offline: /tx/ffacb4d422c8ea367130ad3f58b7bf90c01abde99824031ef00eedb2f9a0d5e1/outspend/0 not in the raw store (scopes ['"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
+    "id": "lijiadong-lazarus-binance",
+    "chain": "btc",
+    "expect": "ATTRIBUTED",
+    "expected_entity": "binance",
+    "state": "ATTRIBUTED",
+    "recommended": "binance",
+    "ambiguous": false,
+    "ranked": [
+      [
+        "binance",
+        70
+      ]
+    ],
+    "hops": 3,
+    "min_hops": 3,
+    "endpoint": "18QHggCdfXfZXQR2aw6Whxz8FiSucanQrg",
+    "expected_endpoint": "18QHggCdfXfZXQR2aw6Whxz8FiSucanQrg",
+    "calls": 98,
+    "upstream": 0,
+    "store_hits": 77,
+    "wall_s": 3.9,
+    "flags": [
+      "coinjoin_boundary:b871624fbe1178e25d9717c252754289b4abb2bc61ae88a7a2fb93f6a9f327ff(18 equal outputs of 600000000 sats from 21 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)",
+      "coinjoin_boundary:55a8c633aaf65c616528aef41ef939f41f00ac6672bf8a906413b6fb0cbaeb4b(18 equal outputs of 600000000 sats from 32 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)",
+      "coinjoin_boundary:b50dd48ccd89fad130915ad3a5e92c4f68a4d1794c6742d8f53314cf5858fb9f(18 equal outputs of 600000000 sats from 28 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
+    "id": "potekhin-karasavidi-bitfinex",
+    "chain": "eth",
+    "expect": "ATTRIBUTED",
+    "expected_entity": "bitfinex",
+    "state": "ATTRIBUTED",
+    "recommended": "bitfinex",
+    "ambiguous": false,
+    "ranked": [
+      [
+        "bitfinex",
+        59
+      ]
+    ],
+    "hops": 3,
+    "min_hops": 3,
+    "endpoint": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+    "expected_endpoint": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+    "calls": 12,
+    "upstream": 0,
+    "store_hits": 12,
+    "wall_s": 0.2,
+    "flags": [
+      "ofac:KARASAVIDI Dmitrii@0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b(hop 3)"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
+    "id": "andreyev-hub-confuser",
+    "chain": "btc",
+    "expect": "UNATTRIBUTED",
+    "expected_entity": null,
+    "state": "UNATTRIBUTED",
+    "recommended": null,
+    "ambiguous": false,
+    "ranked": [],
+    "hops": null,
+    "min_hops": null,
+    "endpoint": null,
+    "expected_endpoint": null,
+    "calls": 19,
+    "upstream": 0,
+    "store_hits": 19,
+    "wall_s": 9.5,
+    "flags": [
+      "service_hub_boundary:12cgpFdJViXbwHbhrA3TuW1EGnL25Zqc3P(77195 receipts, hop 1)"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
+    "id": "bitfinex-2016-unnamed-services",
+    "chain": "btc",
+    "expect": "UNATTRIBUTED",
+    "expected_entity": null,
+    "state": "UNATTRIBUTED",
+    "recommended": null,
+    "ambiguous": false,
+    "ranked": [],
+    "hops": null,
+    "min_hops": null,
+    "endpoint": null,
+    "expected_endpoint": null,
+    "calls": 1,
+    "upstream": 0,
+    "store_hits": 0,
+    "wall_s": 0.1,
+    "flags": [
+      "partial:provider_unavailable at 1HpaHr2pQmVPuFWwNKm7hqjndQPMULNYz5 (hop 0): offline: /address/1HpaHr2pQmVPuFWwNKm7hqjndQPMULNYz5/txs/chain not in the raw store (scopes ['snapshot:719000'])"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  }
+]

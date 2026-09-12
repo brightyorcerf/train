@@ -1,0 +1,525 @@
+# Token / LP CONTRACTS that TagPacks labels as exchange infrastructure (§6 curation fix).
+#
+# Why this file exists: the packs tag a token contract with its issuer's name — 'BitgetToken
+# (BGB)', 'Bitfinex LEO Token', 'KuCoin: Old KCS Token', 'Binance USD' — and ingest turned that
+# into a `hot` label, i.e. a legitimate SWEEP TARGET (§6.2c). A token contract can never be one:
+# nobody's deposit address sweeps into the token's own contract. Left alone, any address that
+# happened to send tokens there would be 'proven' a deposit address of that exchange.
+#
+# Evidence, not names: each address below was confirmed a token contract by asking Etherscan for
+# transfers where contractaddress = the address (a wallet returns none). Candidates were picked
+# by tag name; only this on-chain test decided. Verified 2026-09-12.
+#
+# ingest.py gives these the `token` role instead of hot/deposit/dex, so they stay visible in
+# provenance but can never be crowned, swept to, or treated as a service boundary.
+
+- address: "0x0000000000004946c0e9f43f4dee607b0ef1fa1c"
+  chain: eth
+  was_role: dex
+  tagged_entity: 1inch
+  tag: "1inch_CHI token"
+- address: "0x02d341ccb60faaf662bc0554d13778015d1b285c"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_sAAVE-CurveTokenV3"
+- address: "0x039b5649a59967e3e936d7471f9c3700100ee1ab"
+  chain: eth
+  was_role: hot
+  tagged_entity: kucoin
+  tag: "KuCoin: Old KCS Token"
+- address: "0x055be5ddb7a925bfef3417fc157f53ca77ca7222"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_USDP-LiquidityGaugeV2"
+- address: "0x06325440d014e39736583c165c2963ba99faf14e"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_stETH-CurveTokenV3"
+- address: "0x075b1bb99792c9e1041ba13afef80c91a1e70fb3"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_sBTC-CurveTokenV1"
+- address: "0x111111111117dc0aa78b770fa6a738034120c302"
+  chain: eth
+  was_role: dex
+  tagged_entity: 1inch
+  tag: "1inch_tokenAddress"
+- address: "0x11137b10c210b579405c21a07489e28f3c040ab1"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_oBTC-LiquidityGaugeV2"
+- address: "0x182a603541a4483c308475147d621bbb4e2587c6"
+  chain: eth
+  was_role: hot
+  tagged_entity: zbcom
+  tag: "ZBToken (ZB)"
+- address: "0x182b723a58739a9c974cfdb385ceadb237453c28"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_stETH-LiquidityGaugeV2"
+- address: "0x194ebd173f6cdace046c53eacce9b953f28411d1"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_EURS-CurveTokenV3"
+- address: "0x19de6b897ed14a376dda0fe53a5420d2ac828a28"
+  chain: eth
+  was_role: hot
+  tagged_entity: bitget
+  tag: "BitgetToken (BGB)"
+- address: "0x1aef73d49dedc4b1778d0706583995958dc862e6"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_MUSD-CurveTokenV2"
+- address: "0x1b073382e63411e3bcffe90ac1b9a43fefa1ec6f"
+  chain: eth
+  was_role: hot
+  tagged_entity: bitpanda
+  tag: "Bitpanda Ecosystem Token (BEST)"
+- address: "0x2af5d2ad76741191d15dfe7bf6ac92d4bd912ca3"
+  chain: eth
+  was_role: hot
+  tagged_entity: bitfinex
+  tag: "Bitfinex LEO Token (LEO)"
+- address: "0x2fe94ea3d5d4a175184081439753de15aef9d614"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_oBTC-CurveTokenV3"
+- address: "0x317eb4ad9cfac6232f0046831322e895507bcbeb"
+  chain: eth
+  was_role: hot
+  tagged_entity: tidex
+  tag: "Tidex Token (TDX)"
+- address: "0x34aa2f0ac4407a978704bff8bf1f5266b5915ad6"
+  chain: eth
+  was_role: hot
+  tagged_entity: folgory
+  tag: "FolgoryUSD (USDF)"
+- address: "0x3a664ab939fd8482048609f652f9a0b0677337b9"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_DUSD-CurveTokenV2"
+- address: "0x3b3ac5386837dc563660fb6a0937dfaa5924333b"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_BUSD-CurveTokenV1"
+- address: "0x3b7020743bc2a4ca9eaf9d0722d42e20d6935855"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_UST-LiquidityGaugeV2"
+- address: "0x3c0ffff15ea30c35d7a85b85c0782d6c94e1d238"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_sETH-LiquidityGaugeV2"
+- address: "0x40d52577830e01aaefa80659aa90ee8b34685f4e"
+  chain: eth
+  was_role: hot
+  tagged_entity: bilaxy
+  tag: "Bilaxy Token (BIA)"
+- address: "0x410e3e86ef427e30b9235497143881f717d93c2a"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_bBTC-CurveTokenV3"
+- address: "0x43b4fdfd4ff969587185cdb6f0bd875c5fc83f8c"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_alUSD-Metaimplementation"
+- address: "0x462253b8f74b72304c145db0e4eebd326b22ca39"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_sAAVE-LiquidityGaugeV2"
+- address: "0x49849c98ae39fff122806c06791fa73784fb3675"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_renBTC-CurveTokenV1"
+- address: "0x4ac363455468c22f7f656e994b67f2275fb3badd"
+  chain: eth
+  was_role: hot
+  tagged_entity: digifinex
+  tag: "DIGIFINEXTOKEN (DFT)"
+- address: "0x4be10da47a07716af28ad199fbe020501bddd7af"
+  chain: eth
+  was_role: hot
+  tagged_entity: xt
+  tag: "XT Token (XT)"
+- address: "0x4f3e8f405cf5afc05d68142f3783bdfe13811522"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_USDN-CurveTokenV2"
+- address: "0x4fabb145d64652a948d72533023f6e7a623c7c53"
+  chain: eth
+  was_role: hot
+  tagged_entity: binance
+  tag: "Binance USD"
+- address: "0x5282a4ef67d9c33135340fb3289cc1711c13638c"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_IronBank-CurveTokenV3"
+- address: "0x53a901d48795c58f485cbb38df08fa96a24669d5"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_rETH-CurveTokenV3"
+- address: "0x571ff5b7b346f706aa48d696a9a4a288e9bb4091"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_Yv2-CurveTokenV3"
+- address: "0x5b5cfe992adac0c9d48e05854b2d91c73a003858"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_HUSD-CurveTokenV2"
+- address: "0x64eda51d3ad40d56b9dfc5554e06f94e1dd786fd"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_tBTC-CurveTokenV2"
+- address: "0x666d875c600aa06ac1cf15641361dec3b00432ef"
+  chain: eth
+  was_role: hot
+  tagged_entity: btse
+  tag: "BTSE Token (BTSE)"
+- address: "0x667102bd3413bfeaa3dffb48fa8288819e480a88"
+  chain: eth
+  was_role: hot
+  tagged_entity: tokenize
+  tag: "Tokenize Emblem (TKX)"
+- address: "0x6955a55416a06839309018a8b0cb72c4ddc11f15"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_TriCrypto-LiquidityGaugeV3"
+- address: "0x6a0b8f1e9a0ad411a8819edc6e1a29bd14e0f0a0"
+  chain: eth
+  was_role: hot
+  tagged_entity: gdac
+  tag: "GDAC Exchange Token (GT)"
+- address: "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2"
+  chain: eth
+  was_role: dex
+  tagged_entity: sushiswap
+  tag: "sushiswap_SushiToken"
+- address: "0x6be61833fc4381990e82d7d4a9f4c9b3f67ea941"
+  chain: eth
+  was_role: hot
+  tagged_entity: hotbit
+  tag: "Hotbit Token (HTB)"
+- address: "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_3Pool-CurveTokenV2"
+- address: "0x6d10ed2cf043e6fcf51a0e7b4c2af3fa06695707"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_ankrETH-LiquidityGaugeV2"
+- address: "0x6d65b498cb23deaba52db31c93da9bffb340fb8f"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_LinkUSD-CurveTokenV2"
+- address: "0x6f259637dcd74c767781e37bc6133cd6a68aa161"
+  chain: eth
+  was_role: hot
+  tagged_entity: huobi
+  tag: "HuobiToken (HT)"
+- address: "0x70debcdab2ef20be3d1dbff6a845e9ccb6e46930"
+  chain: eth
+  was_role: hot
+  tagged_entity: biki
+  tag: "BIKICOIN TOKEN (BIKI)"
+- address: "0x72e158d38dbd50a483501c24f792bdaaa3e7d55c"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_FRAX-LiquidityGaugeV2"
+- address: "0x74b1af114274335598da72f5c6ed7b954a016eed"
+  chain: eth
+  was_role: hot
+  tagged_entity: hitbtc
+  tag: "HitBTC Token (HIT)"
+- address: "0x75231f58b43240c9718dd58b4967c5114342a86c"
+  chain: eth
+  was_role: hot
+  tagged_entity: okex
+  tag: "OKEx: OKB Token"
+- address: "0x7eb40e450b9655f4b3cc4259bcc731c63ff55ae6"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_USDP-CurveTokenV3"
+- address: "0x8101e6760130be2c8ace79643ab73500571b7162"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_Yv2-LiquidityGaugeV2"
+- address: "0x824a50df33ac1b41afc52f4194e2e8356c17c3ac"
+  chain: eth
+  was_role: hot
+  tagged_entity: kickex
+  tag: "KickToken (KICK)"
+- address: "0x824f13f1a2f29cfeea81154b46c0fc820677a637"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_rETH-LiquidityGaugeV3"
+- address: "0x827d53c8170af52625f414bde00326fc8a085e86"
+  chain: eth
+  was_role: hot
+  tagged_entity: beaxy
+  tag: "Beaxy Token (BXY)"
+- address: "0x90bb609649e0451e5ad952683d64bd2d1f245840"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_EURS-LiquidityGaugeV2"
+- address: "0x946551dd05c5abd7cc808927480225ce36d8c475"
+  chain: eth
+  was_role: hot
+  tagged_entity: bigone
+  tag: "BigONE Token (ONE)"
+- address: "0x94e131324b6054c0d789b190b2dac504e4361b53"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_UST-CurveTokenV3"
+- address: "0x9582c4adacb3bce56fea3e590f05c3ca2fb9c477"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_alUSD-LiquidityGaugeV3"
+- address: "0x97e2768e8e73511ca874545dc5ff8067eb19b787"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_USDK-CurveTokenV2"
+- address: "0x986ee2b944c42d017f52af21c4c69b84dbea35d8"
+  chain: eth
+  was_role: hot
+  tagged_entity: bitmart
+  tag: "BitMartToken (BMC)"
+- address: "0x9b99cca871be05119b2012fd4474731dd653febe"
+  chain: eth
+  was_role: hot
+  tagged_entity: antimatter
+  tag: "Antimatter.Finance Governance Token (MATTER)"
+- address: "0x9fc689ccada600b6df723d9e47d84d76664a1f23"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_USDT-CurveTokenV1"
+- address: "0xa3d87fffce63b53e0d54faa1cc983b7eb0b74a9c"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_sETH-CurveTokenV3"
+- address: "0xaa17a236f2badc98ddc0cf999abb47d47fc0a6cf"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_ankrETH-CurveTokenV3"
+- address: "0xaa602de53347579f86b996d2add74bb6f79462b2"
+  chain: eth
+  was_role: hot
+  tagged_entity: zipmex
+  tag: "Zipmex Token (ZMT)"
+- address: "0xab93df617f51e1e415b5b4f8111f122d6b48e55c"
+  chain: eth
+  was_role: hot
+  tagged_entity: deltaexchange
+  tag: "Delta Exchange Token (DETO)"
+- address: "0xacce88f5a63a5e65db9aa7303720be16b556e751"
+  chain: eth
+  was_role: hot
+  tagged_entity: coinneal
+  tag: "Coineal Token (NEAL)"
+- address: "0xb19059ebb43466c323583928285a49f558e572fd"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_hBTC-CurveTokenV2"
+- address: "0xb8c77482e45f1f44de1745f52c74426c631bdd52"
+  chain: eth
+  was_role: hot
+  tagged_entity: binance
+  tag: "Binance: BNB Token"
+- address: "0xbd0793332e9fb844a52a205a233ef27a5b34b927"
+  chain: eth
+  was_role: hot
+  tagged_entity: zbcom
+  tag: "ZBToken (ZB)"
+- address: "0xbf8fb919a8bbf28e590852aef2d284494ebc0657"
+  chain: eth
+  was_role: hot
+  tagged_entity: abcc
+  tag: "ABCC Token (AT)"
+- address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  chain: eth
+  was_role: dex
+  tagged_entity: 0xethertokenv4
+  tag: "0x_EtherToken-v4"
+- address: "0xc25a3a3b969415c80451098fa907ec722572917f"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_sUSD-CurveTokenV1"
+- address: "0xc2ee6b0334c261ed60c72f6054450b61b8f18e35"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_RSV-CurveTokenV2"
+- address: "0xc538143202f3b11382d8606aae90a96b042a19db"
+  chain: eth
+  was_role: hot
+  tagged_entity: coinsbit
+  tag: "Coinsbit Token (CNB)"
+- address: "0xc9a2c4868f0f96faaa739b59934dc9cb304112ec"
+  chain: eth
+  was_role: hot
+  tagged_entity: binance
+  tag: "Binance: BGBP Token"
+- address: "0xca3d75ac011bf5ad07a98d02f18225f9bd9a6bdf"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_TriCrypto-CurveTokenV4"
+- address: "0xcb17cd357c7acd594717d899ecb9df540f633f27"
+  chain: eth
+  was_role: hot
+  tagged_entity: coindeal
+  tag: "CoinDeal Token (CDL)"
+- address: "0xcee60cfa923170e4f8204ae08b4fa6a3f5656f3a"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_Link-CurveTokenV3"
+- address: "0xd0bd12a8d5ebca1e2fa46da59f1993ec51c3d75c"
+  chain: eth
+  was_role: hot
+  tagged_entity: bkex
+  tag: "BKEX Token (BK)"
+- address: "0xd241d7b5cb0ef9fc79d9e4eb9e21f5e209f52f7d"
+  chain: eth
+  was_role: hot
+  tagged_entity: hoo
+  tag: "HooToken (HOO)"
+- address: "0xd2967f45c4f384deea880f807be904762a3dea07"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_GUSD-CurveTokenV2"
+- address: "0xd533a949740bb3306d119cc777fa900ba034cd52"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_CRV Token"
+- address: "0xd662908ada2ea1916b3318327a97eb18ad588b5d"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_AAVE-LiquidityGaugeV2"
+- address: "0xd6e91857090c901f3b96d6df7cfb3b41f8673942"
+  chain: eth
+  was_role: hot
+  tagged_entity: zbx
+  tag: "ZBX Token (ZBX)"
+- address: "0xd7d147c6bb90a718c3de8c0568f9b560c79fa416"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_pBTC-LiquidityGaugeV2"
+- address: "0xd905e2eaebe188fc92179b6350807d8bd91db0d8"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_PAX-CurveTokenV1"
+- address: "0xd947b0ceab2a8885866b9a04a06ae99de852a3d4"
+  chain: eth
+  was_role: hot
+  tagged_entity: tradeio
+  tag: "Trade Token X (TIOx)"
+- address: "0xde5331ac4b3630f94853ff322b66407e0d6331e8"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_pBTC-CurveTokenV2"
+- address: "0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_Y-CurveTokenV1"
+- address: "0xdfc7adfa664b08767b735de28f9e84cd30492aee"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_bBTC-LiquidityGaugeV2"
+- address: "0xe386b139ed3715ca4b18fd52671bdcea1cdfe4b1"
+  chain: eth
+  was_role: hot
+  tagged_entity: zeusfinance
+  tag: "Zeus Token (ZST)"
+- address: "0xe41d2489571d322189246dafa5ebde1f4699f498"
+  chain: eth
+  was_role: dex
+  tagged_entity: 0x
+  tag: "0x_ZRXToken-v4"
+- address: "0xe50365f5d679cb98a1dd62d6f6e58e59321bcddf"
+  chain: eth
+  was_role: hot
+  tagged_entity: latoken
+  tag: "LAtoken (LA)"
+- address: "0xed61627b7af399ea7a11f55a03c557cd745c35ba"
+  chain: eth
+  was_role: hot
+  tagged_entity: btcc
+  tag: "BTCCToken (BTCC)"
+- address: "0xf34960d9d60be18cc1d5afc1a6f012a723a28811"
+  chain: eth
+  was_role: hot
+  tagged_entity: kucoin
+  tag: "KuCoin Token (KCS)"
+- address: "0xf5194c3325202f456c95c1cf0ca36f8475c1949f"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_IronBank-LiquidityGaugeV2"
+- address: "0xf5c67033cef7c409ab565909597781468546a454"
+  chain: eth
+  was_role: hot
+  tagged_entity: biconomy
+  tag: "Biconomy token (BIT)"
+- address: "0xf6317dd9b04097a9e7b016cd23dcaa7cfe19d9c6"
+  chain: eth
+  was_role: hot
+  tagged_entity: topbtc
+  tag: "TOPBTC TOKEN (TOPB)"
+- address: "0xfd2a8fa60abd58efe3eee34dd494cd491dc14900"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_AAVE-CurveTokenV3"
+- address: "0xfd4d8a17df4c27c1dd245d153ccf4499e806c87d"
+  chain: eth
+  was_role: dex
+  tagged_entity: curve
+  tag: "curvefinance_Link-LiquidityGaugeV2"

@@ -14,7 +14,11 @@ from dataclasses import dataclass, field
 SOURCE_TIER = {"ground_truth": 1.0, "ofac": 1.0, "curated": 0.8, "tagpacks": 0.6, "sweep": 0.5,
                "heuristic": 0.3}
 DEPOSIT, HOT, SANCTIONED = "deposit", "hot", "sanctioned"   # §6.3 roles (hot = any VASP infra)
-MIXER, DEX = "mixer", "dex"                                   # §9.3 service-node boundaries
+MIXER, DEX, BRIDGE = "mixer", "dex", "bridge"                 # §9.3 service-node boundaries
+# A token/LP CONTRACT, not a wallet. Its own role, because TagPacks tags plenty of them as exchange
+# infrastructure ("Bitfinex LEO Token", "BitgetToken (BGB)") — and a token contract can never be a
+# sweep target (§6.2c), so it must never carry HOT.
+TOKEN = "token"
 
 
 def addr_key(chain: str, address: str) -> str:

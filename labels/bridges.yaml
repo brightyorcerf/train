@@ -1,0 +1,124 @@
+# Hand-curated cross-chain bridge contracts (§9.3 BROKEN_AT_BRIDGE). Until this file existed the
+# BROKEN_AT_BRIDGE state was dead code — nothing could ever set it.
+#
+# Curation rules, applied to every address below:
+#   1. the address comes from the PROJECT'S OWN deployment data (repo file or its own docs site),
+#      or, where the project is defunct and its docs are gone, from a named third-party index —
+#      recorded per entry in `source`, with the tier that implies;
+#   2. I corroborated each one on-chain myself with our adapter on 2026-09-12 (eth tip 25959318):
+#      `contract=true` plus a transaction count over the last 100,000 blocks. That check proves the
+#      address is a live contract; it cannot prove its identity — the source does that.
+#
+# DESTINATION CHAIN — READ THIS BEFORE QUOTING THE OUTPUT:
+# a bridge contract serves many destinations, and the destination of any single transfer is encoded
+# in that transaction's call data. We do NOT decode call data (Etherscan V2 marks `input` deprecated
+# — see providers/etherscan_v2.py), so we emit the bridge contract plus the chains that bridge
+# serves, and never a per-transaction destination. Decoding the destination is named future work,
+# not a claim this prototype makes.
+#
+# role: bridge  ·  every entry is a §9.3 STOP boundary: "subpoena the bridge operator".
+
+- entity: wormhole
+  name: Wormhole
+  tier: curated
+  source: https://raw.githubusercontent.com/wormhole-foundation/wormhole/main/sdk/js/src/utils/consts.ts
+  destinations: [solana, bsc, polygon, avalanche, arbitrum, optimism, base, sui, aptos]
+  addresses:
+    - address: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+      chain: eth
+      note: Core Bridge (message layer). on-chain 2026-09-12 contract=true, 4 txs/100k blocks
+    - address: "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+      chain: eth
+      note: Token Bridge (the one that moves value). on-chain contract=true, >=1000 txs/100k blocks
+    - address: "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE"
+      chain: eth
+      note: NFT Bridge. listed for completeness; not a value rail for our purposes
+
+- entity: polygon_pos_bridge
+  name: Polygon PoS Bridge
+  tier: curated
+  source: https://raw.githubusercontent.com/maticnetwork/static/master/network/mainnet/v1/index.json
+  destinations: [polygon]
+  addresses:
+    - address: "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77"
+      chain: eth
+      note: RootChainManagerProxy — the deposit entry point. on-chain contract=true, >=1000 txs/100k blocks
+    - address: "0x40ec5B33f54e0E8A33A975908C5BA1c14e5BbbDf"
+      chain: eth
+      note: >
+        ERC20PredicateProxy — where bridged ERC-20s are locked. 0 direct txs in the window is
+        EXPECTED: value arrives as token transfers driven by the manager, not as txs sent to it.
+    - address: "0x8484Ef722627bf18ca5Ae6BcF031c23E6e922B30"
+      chain: eth
+      note: EtherPredicateProxy — locked ETH. same 0-direct-tx reasoning as above
+    - address: "0x86E4Dc95c7FBdBf52e33D563BbDB00823894C287"
+      chain: eth
+      note: Plasma RootChainProxy (legacy rail, still holds funds)
+    - address: "0x401F6c983eA34274ec46f84D70b31C151321188b"
+      chain: eth
+      note: Plasma DepositManagerProxy (legacy rail)
+
+- entity: stargate
+  name: Stargate (LayerZero)
+  tier: curated
+  source: https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet
+  destinations: [bsc, avalanche, polygon, arbitrum, optimism, fantom, base, linea]
+  addresses:
+    - address: "0x8731d54E9D02c286767d56ac03e8037C07e01e98"
+      chain: eth
+      note: Router.sol (ERC-20 rail). on-chain 2026-09-12 contract=true, 13 txs/100k blocks
+    - address: "0x150f94B44927F078737562f0fcF3C95c01Cc2376"
+      chain: eth
+      note: RouterETH.sol (native ETH rail). contract=true, 0 txs/100k blocks — v1 volume moved to v2
+    - address: "0x296F55F8Fb28E498B858d0BcDA06D955B2Cb3f97"
+      chain: eth
+      note: Bridge.sol
+    - address: "0x06D538690AF257Da524f25D0CD52fD85b1c2173E"
+      chain: eth
+      note: Factory.sol
+
+- entity: synapse
+  name: Synapse Protocol
+  tier: curated
+  source: https://raw.githubusercontent.com/synapsecns/synapse-contracts/master/deployments/mainnet/SynapseBridge.json
+  destinations: [bsc, polygon, avalanche, arbitrum, optimism, fantom, base]
+  addresses:
+    - address: "0x2796317b0fF8538F253012862c06787Adfb8cEb6"
+      chain: eth
+      note: >
+        SynapseBridge. on-chain 2026-09-12 contract=true but 0 txs in the last 100k blocks — Synapse
+        v1 flow has largely stopped. Kept because tracing is historical: old flows still route here.
+
+- entity: debridge
+  name: deBridge
+  tier: curated
+  source: https://raw.githubusercontent.com/debridge-finance/dln-contracts/main/README.md
+  destinations: [solana, bsc, polygon, avalanche, arbitrum, optimism, base]
+  addresses:
+    - address: "0xeF4fB24aD0916217251F553c0596F8Edc630EB66"
+      chain: eth
+      note: DlnSource — order placement (funds leave here). contract=true, >=1000 txs/100k blocks
+    - address: "0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
+      chain: eth
+      note: DlnDestination — order fulfilment on the destination side
+
+- entity: multichain
+  name: Multichain (Anyswap)
+  tier: tagpacks          # third-party index, NOT the project: its docs died with the protocol
+  source: https://raw.githubusercontent.com/DefiLlama/bridges-server/master/src/adapters/multichain/index.ts
+  destinations: [bsc, polygon, avalanche, arbitrum, optimism, fantom]
+  addresses:
+    # Defunct since the July 2023 collapse/exploit, so 0 recent activity is the expected reading,
+    # not a curation error. Historical flows through these routers are exactly why they are listed.
+    - address: "0xBa8Da9dcF11B50B03fd5284f164Ef5cdEF910705"
+      chain: eth
+      note: Router V6 (WETH). contract=true, 0 txs/100k blocks (protocol defunct)
+    - address: "0xe95fD76CF16008c12FF3b3a937CB16Cd9Cc20284"
+      chain: eth
+      note: Router V3
+    - address: "0x6b7a87899490EcE95443e979cA9485CBE7E71522"
+      chain: eth
+      note: Router V4. contract=true, 0 txs/100k blocks
+    - address: "0x765277EebeCA2e31912C9946eAe1021199B39C61"
+      chain: eth
+      note: Router V4 (second deployment)

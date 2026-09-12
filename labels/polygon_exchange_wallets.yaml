@@ -1,0 +1,50 @@
+# Polygon-active exchange wallets (§17 Polygon vignette) — curated 2026-09-12.
+#
+# WHY THIS FILE IS NEEDED. Every EVM label we had was an ETH label mirrored onto Polygon (one key
+# controls the same address on every EVM chain), so on paper Polygon had 857 labels — and zero of
+# them were Polygon-specific. Measured: of nine major exchanges' labeled ETH hot wallets, only ONE
+# (gate) shows any Polygon activity in the last 200,000 blocks. Exchanges use different addresses
+# on Polygon, so the mirror is honest but nearly useless there.
+#
+# TIER = heuristic (0.3), deliberately. These come from PolygonScan's public name tags, which are
+# the explorer's editorial attribution, NOT exchange-published data. Binance's own transparency
+# post lists only BTC/ETH/BSC/BNB/TRX addresses and says outright it is "not a complete set", so
+# no Polygon address can be sourced at `curated` tier from the exchange itself. A sweep proven
+# against one of these therefore scores LOW on source_tier (§11.1) — which is the correct result,
+# not a limitation to hide.
+#
+# Each entry also carries corroboration I ran myself with our own adapter (the tag says who; the
+# on-chain check says it is real and exchange-scale).
+#
+# NOT INCLUDED, on purpose:
+#   0x714db550b574b3e927af3d93e26127d15721d4c2 — PolygonScan calls it "Gas Hero: GMT Token": a token
+#     contract, not a wallet (see labels/token_contracts.yaml for why that distinction matters).
+#   0x86a067030a9668c13ff2a8c4d5415afc776d4c63 — our fetch returned the tag "Binance 48" for it, the
+#     same tag text returned for 0xe7804c37…; two addresses cannot share one name tag, so one read is
+#     wrong and it is not curated until re-verified.
+#
+# COVERAGE GAP: Binance only. Other exchanges' Polygon wallets are not curated yet — a Polygon trace
+# reaching OKX/Bybit/KuCoin there will still come back UNATTRIBUTED.
+
+- entity: binance
+  name: Binance
+  tier: heuristic
+  addresses:
+    - address: "0xe7804c37c13166ff0b37f5ae0bb07a3aebb6e245"
+      chain: polygon
+      role: hot
+      source: https://polygonscan.com/address/0xe7804c37c13166ff0b37f5ae0bb07a3aebb6e245
+      tag: 'PolygonScan public name tag "Binance 48", classified Exchange'
+      verified: >
+        on-chain 2026-09-12 with our adapter at polygon tip 93657749 — EOA (not a contract), and
+        both txlist and tokentx hit the 1,000-row page cap inside a 200,000-block window.
+        PolygonScan reports 16,248,850 transactions and 54,580,377 POL. Exchange-scale, unambiguous.
+        This is the address day 4 flagged as "the busy Polygon receiver, unlabeled in our set".
+    - address: "0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055"
+      chain: polygon
+      role: hot
+      source: https://polygonscan.com/address/0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055
+      tag: 'PolygonScan public name tag "Binance: Hot Wallet 34", classified Exchange'
+      verified: >
+        on-chain 2026-09-12 — the second busiest counterparty of Binance 48 in a 50,000-block window
+        (231 movements). PolygonScan reports 1,196,345 transactions and ~$44.18M USDC held on Polygon.

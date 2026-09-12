@@ -10,8 +10,9 @@ ATTRIBUTED_INFRA (labeled hot/infra or cluster-propagated — downgraded) · UNA
 """
 import time
 
+from app.boundary import bridge
 from app.labels.propagate import SameOwner, propagate, same_owner_edges
-from app.labels.registry import DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry
+from app.labels.registry import BRIDGE, DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry
 from app.labels.sweep import btc_sweep_proof, evm_sweep_proof
 from app.providers.base import Edge
 from app.providers.esplora import EsploraProvider, ProviderError
@@ -38,6 +39,7 @@ class Tracer:
         self.reg = reg or PgRegistry(label_set, conn=conn)
         self.prov = prov or make_provider(chain, until_block, offline)
         self.until = until_block if until_block != 10**9 else self.tip()
+        self._swapped: set[tuple[str, str]] = set()   # (party, asset) already followed through a DEX
         if chain == "btc":
             self.prov.snapshot = self.until
 
@@ -209,23 +211,57 @@ class Tracer:
                      "asset": m["asset"] if chain != "btc" else None,
                      "utxos": [m["out"]] if m["out"] else None,
                      "utxo_via": {f"{m['out'][0]}:{m['out'][1]}": m} if m["out"] else {}}
-            svc = reg.best(chain, k, roles=(MIXER, DEX))
+            svc = reg.best(chain, k, roles=(MIXER, DEX, BRIDGE))
             lab = reg.best(chain, k)
+            name = reg.entities[svc.entity].name if svc and svc.entity in reg.entities else svc and svc.entity
             if lab:
                 hits.append(_hit(child, lab, hop, self.prov.calls))
-            elif svc:   # §9.3: mixer = STOP; DEX = record the swap, 1:1 value linkage broken
-                flags.append(f"{svc.role}:{reg.entities[svc.entity].name}@{k}(hop {hop}, tx {m['hash']})")
-            elif k in nodes:
+                continue
+            if svc and svc.role == BRIDGE:   # §9.3 STOP: the funds leave this chain
+                flags.append(bridge.flag(svc.entity, name, k, hop, m["hash"]))
+                continue
+            if svc and svc.role == MIXER:    # §9.3 STOP: the link is broken by design
+                flags.append(f"mixer:{name}@{k}(hop {hop}, tx {m['hash']})")
+                continue
+            if svc and svc.role == DEX:
+                # §9.3 DEX: record the swap and CONTINUE at reduced confidence (scoring applies the
+                # dex penalty, §11.1). We do not expand the router itself — it is a hub, and the
+                # funds did not stay there; we follow the asset this same party received back.
+                flags.append(f"dex:{name}@{k}(hop {hop}, tx {m['hash']}) — asset swapped, 1:1 value "
+                             f"linkage broken")
+                nxt += self._after_swap(node, m, hop)
+                continue
+            if k in nodes:
                 if m["out"] and nodes[k]["hop"] == hop:   # same-level UTXO merge keeps its own provenance
                     nodes[k]["utxos"].append(m["out"])
                     nodes[k]["utxo_via"][f"{m['out'][0]}:{m['out'][1]}"] = m
-            else:
-                san = reg.best(chain, k, roles=(SANCTIONED,))
-                if san:
-                    flags.append(f"ofac:{reg.entities[san.entity].name}@{k}(hop {hop})")
-                nodes[k] = child
-                nxt.append(child)
+                continue
+            san = reg.best(chain, k, roles=(SANCTIONED,))
+            if san:
+                flags.append(f"ofac:{reg.entities[san.entity].name}@{k}(hop {hop})")
+            nodes[k] = child
+            nxt.append(child)
         return nxt
+
+    def _after_swap(self, node, m, hop) -> list[dict]:
+        """The counter-leg of a DEX swap: the asset the SAME party received back in that tx. Costs no
+        extra calls (the node's movements are already fetched and memoized). Account chains only."""
+        if self.chain == "btc":
+            return []
+        back = [e for e in self.prov.movements(node["addr"], self.until, node["since"])
+                if e.tx_hash == m["hash"] and e.dst == node["addr"].lower() and e.asset != m["asset"]]
+        out = []
+        for e in sorted(back, key=lambda e: -e.value)[:1]:
+            if (node["addr"], e.asset) in self._swapped:
+                continue
+            self._swapped.add((node["addr"], e.asset))
+            got = {"to": node["addr"], "from": e.src, "value": e.value / 10 ** e.meta["decimals"],
+                   "asset": e.asset, "hash": e.tx_hash, "ts": e.ts, "block": e.block, "out": None,
+                   "change": None, "decimals": e.meta["decimals"], "base_value": e.value,
+                   "index": e.index, "prev": m, "swap": True}
+            out.append({"addr": node["addr"], "hop": hop, "since": e.block, "via": got,
+                        "asset": e.asset, "utxos": None, "utxo_via": {}})
+        return out
 
     def result(self, wallet, hits, flags, nodes, so_edges, evidence, reason, wall) -> dict:
         prov, reg = self.prov, self.reg
