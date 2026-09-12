@@ -6,7 +6,7 @@
     "result": "UNATTRIBUTED",
     "hops": null,
     "api_calls": 33,
-    "wall_clock_s": 23.0,
+    "wall_clock_s": 1.5,
     "endpoint": null,
     "role_basis": null,
     "reason": "hop budget (4) exhausted",
@@ -20,14 +20,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 15,
-      "tokentx": 11,
-      "eth_getCode": 3,
-      "txlistinternal": 3
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 33,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 33,
     "sweep_evidence": []
   },
   {
@@ -37,7 +33,7 @@
     "result": "UNATTRIBUTED",
     "hops": null,
     "api_calls": 31,
-    "wall_clock_s": 45.0,
+    "wall_clock_s": 1.6,
     "endpoint": null,
     "role_basis": null,
     "reason": "no further outgoing value",
@@ -50,14 +46,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 12,
-      "tokentx": 8,
-      "eth_getCode": 3,
-      "txlistinternal": 7
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 31,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 31,
     "sweep_evidence": []
   },
   {
@@ -67,7 +59,7 @@
     "result": "UNATTRIBUTED",
     "hops": null,
     "api_calls": 82,
-    "wall_clock_s": 204.4,
+    "wall_clock_s": 3.7,
     "endpoint": null,
     "role_basis": null,
     "reason": "hop budget (4) exhausted",
@@ -82,14 +74,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 34,
-      "tokentx": 29,
-      "eth_getCode": 4,
-      "txlistinternal": 14
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 82,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 82,
     "sweep_evidence": []
   },
   {
@@ -99,7 +87,7 @@
     "result": "ATTRIBUTED",
     "hops": 1,
     "api_calls": 6,
-    "wall_clock_s": 9.1,
+    "wall_clock_s": 1.4,
     "endpoint": "0xd2ddd6653d27430233617594100e8c7aa1818008",
     "calls_at_hit": 6,
     "entity_sahyog": "unknown",
@@ -131,12 +119,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 3,
-      "tokentx": 2
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 6,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 6,
     "sweep_evidence": [
       {
         "address": "0xd2ddd6653d27430233617594100e8c7aa1818008",
@@ -166,7 +152,7 @@
     "result": "UNATTRIBUTED",
     "hops": null,
     "api_calls": 49,
-    "wall_clock_s": 32.3,
+    "wall_clock_s": 2.3,
     "endpoint": null,
     "role_basis": null,
     "reason": "hop budget (4) exhausted",
@@ -184,12 +170,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "tokentx": 14,
-      "txlist": 14
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 29,
-    "store_hits": 21,
+    "upstream_calls": 1,
+    "store_hits": 49,
     "sweep_evidence": []
   },
   {
@@ -199,7 +183,7 @@
     "result": "ATTRIBUTED_INFRA",
     "hops": 4,
     "api_calls": 36,
-    "wall_clock_s": 7306.4,
+    "wall_clock_s": 2.0,
     "endpoint": "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f",
     "calls_at_hit": 12,
     "entity_sahyog": "unknown",
@@ -267,14 +251,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 19,
-      "tokentx": 10,
-      "eth_getCode": 1,
-      "txlistinternal": 5
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 36,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 36,
     "sweep_evidence": [
       {
         "address": "0x012b958296547af302b153cbdea960920a4ed592",
@@ -342,7 +322,7 @@
     "result": "UNATTRIBUTED",
     "hops": null,
     "api_calls": 16,
-    "wall_clock_s": 15.6,
+    "wall_clock_s": 1.5,
     "endpoint": null,
     "role_basis": null,
     "reason": "no further outgoing value",
@@ -355,14 +335,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "tokentx": 7,
-      "txlist": 6,
-      "eth_getCode": 1,
-      "txlistinternal": 1
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 16,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 16,
     "sweep_evidence": []
   },
   {
@@ -372,7 +348,7 @@
     "result": "ATTRIBUTED_INFRA",
     "hops": 1,
     "api_calls": 2,
-    "wall_clock_s": 1.7,
+    "wall_clock_s": 1.0,
     "endpoint": "0x28c6c06298d514db089934071355e5743bf21d60",
     "calls_at_hit": 2,
     "entity_sahyog": "unknown",
@@ -421,11 +397,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "tokentx": 1
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 2,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 2,
     "sweep_evidence": []
   },
   {
@@ -435,7 +410,7 @@
     "result": "ATTRIBUTED_INFRA",
     "hops": 3,
     "api_calls": 15,
-    "wall_clock_s": 9.0,
+    "wall_clock_s": 1.1,
     "endpoint": "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f",
     "calls_at_hit": 7,
     "entity_sahyog": "unknown",
@@ -486,13 +461,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 11,
-      "tokentx": 2,
-      "eth_getCode": 1
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 15,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 15,
     "sweep_evidence": [
       {
         "address": "0x49ea2bd66a9cdd0098fc510c471a577f5614e8e8",
@@ -541,7 +513,7 @@
     "result": "ATTRIBUTED_INFRA",
     "hops": 2,
     "api_calls": 6,
-    "wall_clock_s": 3.5,
+    "wall_clock_s": 1.0,
     "endpoint": "0x28c6c06298d514db089934071355e5743bf21d60",
     "calls_at_hit": 4,
     "entity_sahyog": "unknown",
@@ -576,12 +548,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 4,
-      "tokentx": 1
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 6,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 6,
     "sweep_evidence": [
       {
         "address": "0x2bf0073076cb59d17b65c10371d9da5a5493a6f4",
@@ -611,7 +581,7 @@
     "result": "UNATTRIBUTED",
     "hops": null,
     "api_calls": 26,
-    "wall_clock_s": 6.4,
+    "wall_clock_s": 1.6,
     "endpoint": null,
     "role_basis": null,
     "reason": "no further outgoing value",
@@ -625,11 +595,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "tokentx": 1
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 2,
-    "store_hits": 25,
+    "upstream_calls": 1,
+    "store_hits": 26,
     "sweep_evidence": []
   },
   {
@@ -639,7 +608,7 @@
     "result": "ATTRIBUTED_INFRA",
     "hops": 4,
     "api_calls": 33,
-    "wall_clock_s": 54.3,
+    "wall_clock_s": 3.0,
     "endpoint": "0x39f6a6c85d39d5abad8a398310c52e7c374f2ba3",
     "calls_at_hit": 10,
     "entity_sahyog": "unknown",
@@ -693,14 +662,10 @@
     "partial": false,
     "same_owner_edges": 0,
     "providers": {
-      "eth_blockNumber": 1,
-      "txlist": 18,
-      "eth_getCode": 2,
-      "tokentx": 7,
-      "txlistinternal": 5
+      "eth_blockNumber": 1
     },
-    "upstream_calls": 33,
-    "store_hits": 1,
+    "upstream_calls": 1,
+    "store_hits": 33,
     "sweep_evidence": [
       {
         "address": "0x09007f65f4c64762209fc929ca0c81b10a0e6630",
@@ -722,5 +687,807 @@
         "sweep": "share_ok_senders_below_min"
       }
     ]
+  },
+  {
+    "entity": "lazarusgroup",
+    "wallet": "0xa0e1c89Ef1a489c9C7dE96311eD5Ce5D32c20E4B",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 7,
+    "wall_clock_s": 10.7,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 4,
+    "flags": [
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xef8bd89d6810752bf34337ee230050d59cf1f55346e3e299b1b1d299860c74cd)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x6556b9ca086e709cdcd68243c058519353a9e43154df3f1fd899782370000abf)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x7c8d1b24df7e9d9415db96565da47facfc888f85063f9b228af36414d6c56881)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x1bb37290f9afff1fa87d0495d590683a0f2ad3836263d2efe487709a54024284)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x6319956fa1bca2e915dfacc604e0bd5e0b01173b2c0da96f326e60e0f105b5f1)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x559efca259613b9b6c80aee5981d0250b5d76fddae5df4402a43d32c0ca9f3ca)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x1effa4b82b3c434f5ebb4478276dc25a52f8daa81c5574e1e55ec267c3d75904)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x91dd12d7336b04c14be954b106132119233fa76c8b0f43db4a4ac957072e686a)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xd854335754a106a1c9f01161b9b844de2d2af8d29847e283c8624adbd28b0ee2)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x91d1807259b8d72ee8db3c4a72310c9b105eda7cdd122e377739864eeaa8d9d4)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x502bc5d24559bdbc53afc9ef538abcc169e490fe7fc3ed24be61190d4f1d23b9)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x7ca34fa232b112646a5c228277a235bf48591af6499e6bcc72e1fae44403de9a)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 3,
+      "tokentx": 3
+    },
+    "upstream_calls": 7,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-simhyonsop",
+    "wallet": "0x747AFB5c7A7fc34B547cD0FDEbf9b91759C5a52b",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 62,
+    "wall_clock_s": 296.2,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "hop budget (4) exhausted",
+    "addresses_seen": 13,
+    "flags": [
+      "service_hub_boundary:0xb685760ebd368a891f27ae547391f4e2a289895b(>5k movements, hop 2)",
+      "service_hub_boundary:0xee030ec6f4307411607e55acd08e628ae6655b86(>5k movements, hop 2)",
+      "service_hub_boundary:0xee0319cf0bca5d09333f9f6277743e8de31bd69a(>5k movements, hop 2)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 21,
+      "txlist": 20,
+      "txlistinternal": 15,
+      "eth_getCode": 1
+    },
+    "upstream_calls": 58,
+    "store_hits": 5,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "bitfinex",
+    "wallet": "0x7F367cC41522cE07553e823bf3be79A889DEbe1B",
+    "chain": "eth",
+    "result": "ATTRIBUTED",
+    "hops": 3,
+    "api_calls": 12,
+    "wall_clock_s": 19.1,
+    "endpoint": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+    "calls_at_hit": 12,
+    "entity_sahyog": "unknown",
+    "role": "deposit",
+    "role_basis": "sweep_proven",
+    "label_confidence": 0.5,
+    "label_source": "11 distinct senders; 100.0% of first 3 ETH spends -> bitfinex hot 0x876eabf441b2ee5b5b0554fd502a8e0600950cfa (last 0xc219aef459993b1c2484fdd2e7bc66e0f44c6d9876ce7501015d6241a7f40f82; labeled <- graphsense-tagpacks@7f9a5d1f/exchange-wallets-bitfinexcom.yaml <- https://github.com/bitfinexcom/pub/blob/main/wallets.txt)",
+    "deposit_event": {
+      "tx": "0x0ee60494f16d7ec83990a2b6bfd69e4ac802e6bca84f6c8ed9e522877bcb7929",
+      "ts": 1523809725,
+      "asset": "ETH",
+      "amount": 7112.70904547
+    },
+    "path": [
+      {
+        "from": "0x7f367cc41522ce07553e823bf3be79a889debe1b",
+        "to": "0x2718752b8895742349c82ca759b87c79b2466330",
+        "tx": "0x771dde2846284998acf035cb39dd9c772fa938ec79b5da47bcd461cc23b6eb7e",
+        "value": 1756.99221894,
+        "asset": "ETH",
+        "ts": 1516066029
+      },
+      {
+        "from": "0x2718752b8895742349c82ca759b87c79b2466330",
+        "to": "0x6f6394dce578bd1abab4780376704eddaf42785c",
+        "tx": "0xd7ba11c843895b22be58d4555e51f03681654eab0753bd250db99862101325a4",
+        "value": 5845.38111347,
+        "asset": "ETH",
+        "ts": 1523808646
+      },
+      {
+        "from": "0x6f6394dce578bd1abab4780376704eddaf42785c",
+        "to": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+        "tx": "0x0ee60494f16d7ec83990a2b6bfd69e4ac802e6bca84f6c8ed9e522877bcb7929",
+        "value": 7112.70904547,
+        "asset": "ETH",
+        "ts": 1523809725
+      }
+    ],
+    "addresses_seen": 5,
+    "flags": [
+      "ofac:KARASAVIDI Dmitrii@0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b(hop 3)"
+    ],
+    "other_hits": [],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 9,
+      "tokentx": 2
+    },
+    "upstream_calls": 12,
+    "store_hits": 1,
+    "sweep_evidence": [
+      {
+        "address": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+        "entity": "bitfinex",
+        "share": 1.0,
+        "asset": "ETH",
+        "sweep_tx": "0xc219aef459993b1c2484fdd2e7bc66e0f44c6d9876ce7501015d6241a7f40f82",
+        "sweep_ts": 1540839035,
+        "hot_wallet": "0x876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+        "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/exchange-wallets-bitfinexcom.yaml <- https://github.com/bitfinexcom/pub/blob/main/wallets.txt",
+        "distinct_senders": 11,
+        "senders_truncated": true,
+        "deposit_event": {
+          "tx": "0x0ee60494f16d7ec83990a2b6bfd69e4ac802e6bca84f6c8ed9e522877bcb7929",
+          "ts": 1523809725,
+          "asset": "ETH",
+          "amount": 7112.70904547
+        },
+        "sweep": "proven"
+      }
+    ]
+  },
+  {
+    "entity": "ofac-amnokgangtechnologydevelopmentcompany",
+    "wallet": "0xcB74874f1e06Fcf80A306e06e5379A44B488bA2D",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 12,
+    "wall_clock_s": 33.0,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 2,
+    "flags": [
+      "service_hub_boundary:0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23(>5k movements, hop 1)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 6,
+      "txlist": 5
+    },
+    "upstream_calls": 12,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-kondratievivangennadievich",
+    "wallet": "0xf3701f445b6bdafedbca97d1e477357839e4120d",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 14,
+    "wall_clock_s": 47.9,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 3,
+    "flags": [
+      "service_hub_boundary:0x292f04a44506c2fd49bac032e1ca148c35a478c8(>5k movements, hop 1)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 7,
+      "txlist": 6
+    },
+    "upstream_calls": 14,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-firstvpnservice",
+    "wallet": "0x2711d73d559f62f4f855ee21f38378f528e07985",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 12,
+    "wall_clock_s": 37.2,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 2,
+    "flags": [
+      "service_hub_boundary:0xf52605c7b778563a5a9144ef4dc53b57463ca2c7(>5k movements, hop 1)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 6,
+      "txlist": 5
+    },
+    "upstream_calls": 12,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "binance",
+    "wallet": "0x72a5843cc08275C8171E582972Aa4fDa8C397B2A",
+    "chain": "eth",
+    "result": "ATTRIBUTED_INFRA",
+    "hops": 2,
+    "api_calls": 6,
+    "wall_clock_s": 3.5,
+    "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+    "calls_at_hit": 6,
+    "entity_sahyog": "unknown",
+    "role": "hot",
+    "role_basis": "hot:labeled",
+    "label_confidence": 0.3,
+    "label_source": "graphsense-tagpacks@7f9a5d1f/etherscan-wordcloud-exchange.yaml 'Binance' <- https://etherscan.io/accounts/label/exchange",
+    "deposit_event": null,
+    "path": [
+      {
+        "from": "0x72a5843cc08275c8171e582972aa4fda8c397b2a",
+        "to": "0x5cc17d0fa620fe99daeaa87365c63b453bc47664",
+        "tx": "0xdd6364536f5f05cc1ea75709b676e2b1b37fad2792d3a71fb537db13100fc6b8",
+        "value": 2.6773581135091926,
+        "asset": "ETH",
+        "ts": 1516260388
+      },
+      {
+        "from": "0x5cc17d0fa620fe99daeaa87365c63b453bc47664",
+        "to": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "tx": "0xa6b76f0625200fb99ea661399a3a3ddf1e78412f2df9c811ba1f08e5d58f472f",
+        "value": 7.9243207,
+        "asset": "ETH",
+        "ts": 1585190227
+      }
+    ],
+    "addresses_seen": 2,
+    "flags": [],
+    "other_hits": [
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "entity": "binance",
+        "hops": 2,
+        "role_basis": "hot:labeled"
+      }
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 3,
+      "txlist": 2
+    },
+    "upstream_calls": 6,
+    "store_hits": 1,
+    "sweep_evidence": [
+      {
+        "address": "0x5cc17d0fa620fe99daeaa87365c63b453bc47664",
+        "entity": "binance",
+        "share": 1.0,
+        "asset": "ETH",
+        "sweep_tx": "0xa6b76f0625200fb99ea661399a3a3ddf1e78412f2df9c811ba1f08e5d58f472f",
+        "sweep_ts": 1585190227,
+        "hot_wallet": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/etherscan-wordcloud-exchange.yaml 'Binance' <- https://etherscan.io/accounts/label/exchange",
+        "distinct_senders": 2,
+        "senders_truncated": false,
+        "deposit_event": {
+          "tx": "0xdd6364536f5f05cc1ea75709b676e2b1b37fad2792d3a71fb537db13100fc6b8",
+          "ts": 1516260388,
+          "asset": "ETH",
+          "amount": 2.6773581135091926
+        },
+        "sweep": "share_ok_senders_below_min"
+      }
+    ]
+  },
+  {
+    "entity": "bitfinex",
+    "wallet": "0x9f4cda013e354b8fc285bf4b9a60460cee7f7ea9",
+    "chain": "eth",
+    "result": "ATTRIBUTED_INFRA",
+    "hops": 1,
+    "api_calls": 1,
+    "wall_clock_s": 1.1,
+    "endpoint": "0x876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+    "calls_at_hit": 1,
+    "entity_sahyog": "unknown",
+    "role": "hot",
+    "role_basis": "hot:labeled",
+    "label_confidence": 0.6,
+    "label_source": "graphsense-tagpacks@7f9a5d1f/exchange-wallets-bitfinexcom.yaml <- https://github.com/bitfinexcom/pub/blob/main/wallets.txt",
+    "deposit_event": null,
+    "path": [
+      {
+        "from": "0x9f4cda013e354b8fc285bf4b9a60460cee7f7ea9",
+        "to": "0x876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+        "tx": "0xbd6977bf68f74c3d6d564e8047c8e5eb1fc22bd7bcb859493fdcf3449a1d6c8f",
+        "value": 0.04027189,
+        "asset": "ETH",
+        "ts": 1595624723
+      }
+    ],
+    "addresses_seen": 1,
+    "flags": [],
+    "other_hits": [
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+        "entity": "bitfinex",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+        "entity": "bitfinex",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      }
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1
+    },
+    "upstream_calls": 1,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-zimenkovjonatan",
+    "wallet": "0x39D908dac893CBCB53Cc86e0ECc369aA4DeF1A29",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 4,
+    "wall_clock_s": 2.6,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "hop budget (4) exhausted",
+    "addresses_seen": 5,
+    "flags": [],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 3
+    },
+    "upstream_calls": 4,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-yunsongguk",
+    "wallet": "0xb637f84b66876ebf609c2a4208905f9ddac9d075",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 12,
+    "wall_clock_s": 35.4,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 2,
+    "flags": [
+      "service_hub_boundary:0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23(>5k movements, hop 1)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 6,
+      "txlist": 5
+    },
+    "upstream_calls": 12,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "lazarusgroup",
+    "wallet": "0x08723392Ed15743cc38513C4925f5e6be5c17243",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 9,
+    "wall_clock_s": 5.1,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 5,
+    "flags": [
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x5f62a5a85b3a05e07ce989181528f272c3e2f04495eef5a6d3e2931218796570)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xac9f68fdadf67c54ff1fe6201d5c202cf4a00374ae05ccb41f314896c4e0f4b8)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x17bb50dd440698827bdba5c235790f62d22f839ce4a82aecb802e154a05a313f)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xb7d3cc3725ec1cff56274a54cac5380bd85289f96f7b39d9db92568081402989)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x0461889df341074b206b67900118eb27be01022a9cf721e25643ebf11f292a73)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xed1527a24a0a4b0567c9e72dcbaf4aa3f0a719bb9e949e58ffbddcf4553999f2)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xc58e5a61d9ade42937302e09d0692f466980ff36e1d7ccbf25eec69d54596930)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x04ee27ff791b5f7852d4f6b82838da78590c06a5adf24727c54985ffe498c99d)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x0c8e778643e7dcb762e016524f62e990e61cab9b4dd20fc3bb4476a3001e1d12)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xa4a9b3e08114636d30d964925f8182e75dba5ee982e8ca767284206f641fb583)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x5925146b9c5de376d4f522a92d6f0e5aa387f70ce36e7b71713b651b4a9df2ac)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x42b7c24afe397139a0e7f9e1a7a1d42a652ec8b30e943daf11a6a4e46ed100dc)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x3cfbcb58e35a6809c8f983b4e4a4a8fa1896c25aa0107ea680747f2c08ca2b69)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x7bb8f2b6617a729da20b1fd965add0e08d134e90194f0044f45ed4f500ca6b9e)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xf5b3d2c9e056bfe98714f508a7f6f1d9c35b777b3432b904f1a5e633f92d5ebc)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x950a86f1723757537e170d49f43385c4ec5358de66a407961b066079564b45e7)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 4,
+      "tokentx": 4
+    },
+    "upstream_calls": 9,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "gate",
+    "wallet": "0xE950DC316b836e4EeFb8308bf32Bf7C72a1358FF",
+    "chain": "eth",
+    "result": "ATTRIBUTED_INFRA",
+    "hops": 1,
+    "api_calls": 2,
+    "wall_clock_s": 1.8,
+    "endpoint": "0x0d0707963952f2fba59dd06f2b425ace40b492fe",
+    "calls_at_hit": 2,
+    "entity_sahyog": "unknown",
+    "role": "hot",
+    "role_basis": "hot:labeled",
+    "label_confidence": 0.3,
+    "label_source": "graphsense-tagpacks@7f9a5d1f/etherscan-wordcloud-exchange.yaml 'Gate.io' <- https://etherscan.io/accounts/label/exchange",
+    "deposit_event": null,
+    "path": [
+      {
+        "from": "0xe950dc316b836e4eefb8308bf32bf7c72a1358ff",
+        "to": "0x0d0707963952f2fba59dd06f2b425ace40b492fe",
+        "tx": "0x0d7808e267947dbb60c56b3adb47707e5e48d51118b69f8095feb8ddb6a03331",
+        "value": 4168.9,
+        "asset": "USDT",
+        "ts": 1652676305
+      }
+    ],
+    "addresses_seen": 1,
+    "flags": [],
+    "other_hits": [
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x0d0707963952f2fba59dd06f2b425ace40b492fe",
+        "entity": "gate",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x0d0707963952f2fba59dd06f2b425ace40b492fe",
+        "entity": "gate",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      }
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 1
+    },
+    "upstream_calls": 2,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "lazarusgroup",
+    "wallet": "0x3e37627dEAA754090fBFbb8bd226c1CE66D255e9",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 9,
+    "wall_clock_s": 5.0,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 5,
+    "flags": [
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x44c17f1b5d81e25ef07c6600a87724ff825c6e85c1fe222546f9fd872368a930)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xaaceec81dca8f8998fb9b89b43f82ea3af98f9cdd61843ec968d4554e22c570a)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x6032284192fe4e1565c4b56711ea7109311a56d8e673a0cc9da2605cf2c1243c)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x39f87218ebec3ab5ef02ff5d5979b94f9c265956e868d5cf30fa5d89a8270c00)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xa991b43f57faf891334647a2beed921b79fdc7d60ef8b970bdd00973ddf3956b)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xd122cdc685bd9e27a4cdd8a934336d075d1eabb1523db4a4d277203795288fbd)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x620e0dbf3bb0aceef06d324b3434b662e2a2a1611aa480baab4e832947e3ac3c)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x9548e1af4e86bcac05f98e063c9b42c35a06c2d87b496dc36b0b579185577b9b)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xa3c811ccaf0767707f3f736147f12a989ca610609bbd7ae0311d64b68646bcc9)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x816c5d4c483b6856a0a6d19425a0ed07ea68eb02519a239e48dc15c7fe28bba2)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x35f975b17eb99c6d9f11665a832729f1666d8df0db8bf34affd72749065b2fe8)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x5a0f4e1b83976bac3701525855aab41f996ce5255c1752da555186d2af95049a)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x27ad85571bc6bf737021ffdda56b0f202bc56904f7fd9e6e0b829a3afd67d5d1)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x26d61b036d61a82bb51c0ca7be1ca5f10a6b73454a12be65469d2e861ab57171)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x5cab05b9321b60b0b6e0b61416496a146c2fd50d25ecfe80ab0abf8707e436a5)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xfeea898e2edde9cdb9a6fb26f77222b20c1669ef8496efb49c9741d03b9943f7)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 4,
+      "tokentx": 4
+    },
+    "upstream_calls": 9,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "binance",
+    "wallet": "0xfec8a60023265364d066a1212fde3930f6ae8da7",
+    "chain": "eth",
+    "result": "ATTRIBUTED_INFRA",
+    "hops": 1,
+    "api_calls": 2,
+    "wall_clock_s": 1.6,
+    "endpoint": "0x28c6c06298d514db089934071355e5743bf21d60",
+    "calls_at_hit": 2,
+    "entity_sahyog": "unknown",
+    "role": "hot",
+    "role_basis": "hot:labeled",
+    "label_confidence": 0.6,
+    "label_source": "graphsense-tagpacks@7f9a5d1f/exchange-wallets-binance.yaml <- https://www.binance.com/en/blog/community/our-commitment-to-transparency-2895840147147652626",
+    "deposit_event": null,
+    "path": [
+      {
+        "from": "0xfec8a60023265364d066a1212fde3930f6ae8da7",
+        "to": "0x28c6c06298d514db089934071355e5743bf21d60",
+        "tx": "0xa3ac83bbc310f13243731c7c664ba929b7880b5f442b0584999201a692ef30c2",
+        "value": 704271.4112524933,
+        "asset": "DAI",
+        "ts": 1632405735
+      }
+    ],
+    "addresses_seen": 1,
+    "flags": [],
+    "other_hits": [
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x28c6c06298d514db089934071355e5743bf21d60",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x28c6c06298d514db089934071355e5743bf21d60",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      },
+      {
+        "result": "ATTRIBUTED_INFRA",
+        "endpoint": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+        "entity": "binance",
+        "hops": 1,
+        "role_basis": "hot:labeled"
+      }
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 1
+    },
+    "upstream_calls": 2,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "lazarusgroup",
+    "wallet": "0x35fB6f6DB4fb05e6A4cE86f2C93691425626d4b1",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 9,
+    "wall_clock_s": 5.2,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 5,
+    "flags": [
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x8470d372429d9fde871624ee33e82f228a9a7e5283302f939e804fc4d5ce385e)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x49b5b91da2a6295a10cdb0f012ecd62d9d580427f2622e19ed6f03105a5b76e1)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x8bb876d2d2650a45186dd348b356ad0903056d89b551b1a21cdf3d6d44c580a1)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x19dec0a33ced285842dfb71f075a768bcfd83ef2bcc66a230dbbfb9a0aad7f31)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xf2434cba51519c916b3a03bf97f13d9156cfebe6a4c6bd7adb54baac96ce26e4)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x7fc3dd27283f48f004399cc635e55973e488f15e051fd3741d4fda6a97bb0bf1)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x66ff6b9ba63ccbe0031338d0d4586e64ecffad4068c8b1d0291aca70d0e14b57)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x8842894e38e0a55376a71a12896f8eec623fec083b7bca62af88b43af35b2087)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xdee885724e0c8bb240d5adeeed776f3c3e61738fdaefc6511a55f6a7e60f67e7)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xb9e06d75f25a42a3d451c86c9aae6730ba2ee77934cfb194e369b909c90a87be)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x42db8ccbee5f1f33453b47257530b3b6620489398c051825cd62ffe151ec40a5)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x825324b3ccaeca982067afe4ace5e68beec5e4152707015537070d0f09cfcbca)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x3caaa64162268066abaef0cb3252eccae573a5df0bf14dead58f19bb66ff27a4)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x0e702edbfff6708dd16759710b813788acfb68655f75f4de915e7ccbc4b4d001)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xb39f4cd24fdb181335159adc1f10588cc85414750ad7e1cb80b2c2b1c8023d3c)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xef431d08e915e56bf5a6c9e5933af1b3d052c09b2deeeab244573bcd2cdc6f0d)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 4,
+      "tokentx": 4
+    },
+    "upstream_calls": 9,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-mesribehzad",
+    "wallet": "0x9DD7fA4B4950154F7e75BdD8A77266B99b94Ec08",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 24,
+    "wall_clock_s": 14.7,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "hop budget (4) exhausted",
+    "addresses_seen": 17,
+    "flags": [
+      "ofac:MESRI Behzad@0x9dd7fa4b4950154f7e75bdd8a77266b99b94ec08(hop 2)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 11,
+      "tokentx": 8,
+      "eth_getCode": 3,
+      "txlistinternal": 1
+    },
+    "upstream_calls": 24,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "lazarusgroup",
+    "wallet": "0x3Cffd56B47B7b41c56258D9C7731ABaDc360E073",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 7,
+    "wall_clock_s": 4.1,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 4,
+    "flags": [
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x7ed32a5d22e2762e8bcfac96c08a2ba4a944bca440b8d6a679915d1d1497806e)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x62b04a487c3768dae8ce50af7e8c9ca33ee47c2da6d842c760d0d1761d0c8c3f)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x965d740beafc8f9b33d878569a119770d76e5ce6daa52150854a44b50ee0e956)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xfa53f76974ed24b1ae8d3941ffaa517cd0402f7bf1c238e3a0ad5c33502891eb)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x9bf7f1e88e328f8623eba2c9b2ab3bfa93a0715cf0663a5514b11f02a56bda11)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xde89778d32b05f61256fc9958531a690ac850c1986a1f2eb1ed7c6543a2dadb7)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x84ba3290d9cc6ff0d12b692a34b9c49efdea6c586a84b88bf481024dcf30ca9b)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xade7c6d217d63871c8a87b3e9eff5b4d40f813c440acd8950e61ece557e7e4cd)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0x70e84483eb54f26b45c16ca89ae88f6753e18ee475a03de496a3c3434b1d592a)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xac36fa277ffc895e7eb387e71289450ace715c9d7efdcb0be1b9a76ca9c7f8e1)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xa1b76cfb1f1790262d33dc816e7e3a53ccf972be0665c42d0edc2ee814d7ecea)",
+      "mixer:Tornado Cash@0xd90e2f925da726b50c4ed8d0fb90ad053324f31b(hop 2, tx 0xddf05378875cbfb1e111cdf332c969a0a9f59eb0d4cdcc10548eeeed1a3c31e6)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "txlist": 3,
+      "tokentx": 3
+    },
+    "upstream_calls": 7,
+    "store_hits": 1,
+    "sweep_evidence": []
+  },
+  {
+    "entity": "ofac-semenovroman",
+    "wallet": "0x931546D9e66836AbF687d2bc64B30407bAc8C568",
+    "chain": "eth",
+    "result": "UNATTRIBUTED",
+    "hops": null,
+    "api_calls": 24,
+    "wall_clock_s": 39.6,
+    "endpoint": null,
+    "role_basis": null,
+    "reason": "no further outgoing value",
+    "addresses_seen": 4,
+    "flags": [
+      "service_hub_boundary:0x27239549dd40e1d60f5b80b0c4196923745b1fd2(>5k movements, hop 1)",
+      "service_hub_boundary:0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640(>5k movements, hop 1)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1,
+      "tokentx": 11,
+      "txlist": 3,
+      "eth_getCode": 3,
+      "txlistinternal": 6
+    },
+    "upstream_calls": 24,
+    "store_hits": 1,
+    "sweep_evidence": []
   }
 ]

@@ -28,6 +28,7 @@ from collections import Counter
 import httpx
 
 from app.core.config import settings
+from app.core.ratelimit import open_limiter
 from app.providers.base import BlockchainProvider, Edge, TxIn, TxOut, TxRecord
 from app.providers.store import open_store
 
@@ -57,14 +58,18 @@ class ProviderError(RuntimeError):
 
 
 class EtherscanV2Provider(BlockchainProvider):
-    def __init__(self, chain: str, store="auto", offline=False, page_cap: int = 5, finality: int = 128):
+    def __init__(self, chain: str, store="auto", offline=False, page_cap: int = 5, finality: int = 128,
+                 limiter="auto"):
         if chain not in CHAIN_ID:
             raise ValueError(f"{chain}: Etherscan free tier here covers {sorted(CHAIN_ID)} (BNB is not free)")
         if not settings.etherscan_api_key:
             raise ProviderError("ETHERSCAN_API_KEY is empty in .env (free: etherscan.io/myapikey)")
         self.chain, self.page_cap, self.finality, self.offline = chain, page_cap, finality, offline
         self.store = open_store() if store == "auto" else store
+        self.limiter = open_limiter() if limiter == "auto" else limiter
         self.calls, self.upstream, self.store_hits, self.retries = 0, 0, 0, 0
+        self.stale: list[str] = []
+        self.requests: list[str] = []        # every logical read, for the audit-log upstream hash (§12)
         self.calls_by = Counter()          # per action
         self.truncated: set[str] = set()
         self._tip: int | None = None
@@ -79,6 +84,7 @@ class EtherscanV2Provider(BlockchainProvider):
         if req in self._memo:
             return self._memo[req]
         self.calls += 1
+        self.requests.append(req)
         if cacheable and self.store:
             body = self.store.get(req, IMMUTABLE)
             if body is not None:
@@ -87,7 +93,15 @@ class EtherscanV2Provider(BlockchainProvider):
                 return body
         if self.offline:
             raise ProviderError(f"offline: {req} not in the raw store")
-        res = self._fetch(params)
+        try:
+            res = self._fetch(params)
+        except ProviderError:
+            old = self.store.latest(req) if self.store else None   # §8: 429 -> cache, mark partial
+            if not old:
+                raise
+            body, sc, at = old
+            self.stale.append(f"{req[:60]}… (stored {at:%Y-%m-%d %H:%M})")
+            return body
         if cacheable:
             self._memo[req] = res
             if self.store:
@@ -96,6 +110,9 @@ class EtherscanV2Provider(BlockchainProvider):
 
     def _fetch(self, params):
         for attempt in range(5):
+            if self.limiter:
+                self.limiter.acquire("etherscan")
+                self.limiter.spend_quota("etherscan")
             wait = self._last + MIN_INTERVAL - time.time()
             if wait > 0:
                 time.sleep(wait)

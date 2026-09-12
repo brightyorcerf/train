@@ -60,7 +60,10 @@ def main():
     check("until_block bounds history (paged from an anchor tx, 525-tx address)",
           h and max(t.block for t in h) <= sw.block and not p.history(DEP, 0, max_pages=1),
           f"{len(h)} txs, blocks {h and min(t.block for t in h)}..{h and max(t.block for t in h)} <= {sw.block}")
-    fo = EsploraProvider(bases=["http://127.0.0.1:9/api", settings.mempool_base_url, settings.esplora_base_url])
+    # store=False: the §12 raw store would answer before the dead primary is ever contacted, and the
+    # drill is about the breaker, not the cache (the cache path is drilled in day6_celery_check).
+    fo = EsploraProvider(bases=["http://127.0.0.1:9/api", settings.mempool_base_url, settings.esplora_base_url],
+                         store=False)
     fo_tx = fo.get_tx(DEPOSIT_TX)
     check("failover drill: dead primary -> breaker trips, next provider serves",
           fo_tx.hash == DEPOSIT_TX and fo.trips["http://127.0.0.1:9/api"] == 1,

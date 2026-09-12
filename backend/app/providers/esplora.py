@@ -21,6 +21,7 @@ import httpx
 from app.boundary.change import coinjoin_reason, detect_change
 from app.core.config import settings
 from app.providers.base import BlockchainProvider, Edge, TxIn, TxOut, TxRecord
+from app.core.ratelimit import open_limiter
 from app.providers.store import open_store
 
 IMMUTABLE = "immutable"
@@ -34,13 +35,15 @@ class EsploraProvider(BlockchainProvider):
     chain = "btc"
 
     def __init__(self, bases=None, min_interval=0.5, timeout=10.0, cooldown=120.0, slow=8.0,
-                 store="auto", offline=False, snapshot: int | None = None):
+                 store="auto", offline=False, snapshot: int | None = None, limiter="auto"):
         self.bases = bases or [settings.mempool_base_url, settings.esplora_base_url]
         self.min_interval, self.cooldown, self.slow = min_interval, cooldown, slow
         self.store = open_store() if store == "auto" else store   # None/False = uncached (drills)
         self.offline = offline            # serve only from the store (§11.2 offline fixture mode)
         self.snapshot = snapshot          # scope for volatile reads that take no until_block (stats)
-        self.calls, self.upstream, self.store_hits = 0, 0, 0
+        self.limiter = open_limiter() if limiter == "auto" else limiter
+        self.calls, self.upstream, self.store_hits, self.stale = 0, 0, 0, []
+        self.requests: list[str] = []        # every logical read, for the audit-log upstream hash (§12)
         self.calls_by, self.trips = Counter(), Counter()
         self.down_until: dict[str, float] = {}
         self.truncated: set[str] = set()   # addresses whose history exceeded the page cap
@@ -57,6 +60,7 @@ class EsploraProvider(BlockchainProvider):
             return self._cache[path]
         self.calls += 1
         req = "esplora:" + path
+        self.requests.append(req)
         for sc in scopes if self.store else ():
             body = self.store.get(req, sc)
             if body is not None:
@@ -64,7 +68,17 @@ class EsploraProvider(BlockchainProvider):
                 return body
         if self.offline:
             raise ProviderError(f"offline: {path} not in the raw store (scopes {list(scopes)})")
-        j = self._fetch(path)
+        try:
+            j = self._fetch(path)
+        except ProviderError:
+            # §8: on 429 / provider down, serve the last stored answer and mark the result partial —
+            # never a stack trace on stage. A stale answer may pre-date the snapshot: say so.
+            old = self.store.latest(req) if self.store else None
+            if not old:
+                raise
+            body, sc, at = old
+            self.stale.append(f"{path} (stored {at:%Y-%m-%d %H:%M} under {sc})")
+            return body
         sc = keep(j) if keep else (scopes[0] if scopes else None)
         if self.store and sc:
             self.store.put(req, sc, "esplora", j)
@@ -77,6 +91,8 @@ class EsploraProvider(BlockchainProvider):
         order = up or [min(self.bases, key=lambda b: self.down_until[b])]
         errs = []
         for base in order:
+            if self.limiter:
+                self.limiter.acquire("mempool" if "mempool" in base else "blockstream")
             wait = self._last.get(base, 0) + self.min_interval - time.time()
             if wait > 0:
                 time.sleep(wait)
