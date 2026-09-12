@@ -148,5 +148,90 @@
       }
     ],
     "source_doc": "Start: OFAC SDN Yevgeniy Polyanin (REvil/Sodinokibi), XBT 3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD listed in Treasury jy0471 2021-11-08 https://home.treasury.gov/news/press-releases/jy0471 ; Chainalysis https://www.chainalysis.com/blog/ofac-sanction-chatex-revil-sodinokibi-november-2021/ . Path: 2-hop peel chain (change-detected) -> 1HUGgSq -> 17wFjw, April 2020. Endpoint: sweep-proven Binance deposit (>=32 senders; 99.97% of sweep 68c06a78 into Binance hot 1NDyJt, graphsense binance.yaml <- CoinDesk 2019 hack report). Bitfinex (candidate 1) did not resolve: peel endpoints are unnamed services."
+  },
+  "evm_case": {
+    "wallet": "0x7F367cC41522cE07553e823bf3be79A889DEbe1B",
+    "chain": "eth",
+    "api_calls": 12,
+    "wall_clock_s": 1.1,
+    "addresses_seen": 5,
+    "flags": [
+      "ofac:KARASAVIDI Dmitrii@0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b(hop 3)"
+    ],
+    "until_block": 25906777,
+    "label_set_version": "ls-efb16cdf4c15",
+    "partial": false,
+    "stale_reads": [],
+    "same_owner_edges": 0,
+    "providers": {
+      "eth_blockNumber": 1
+    },
+    "upstream_calls": 1,
+    "store_hits": 12,
+    "sweep_evidence": [
+      {
+        "address": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+        "entity": "bitfinex",
+        "share": 1.0,
+        "asset": "ETH",
+        "sweep_tx": "0xc219aef459993b1c2484fdd2e7bc66e0f44c6d9876ce7501015d6241a7f40f82",
+        "sweep_ts": 1540839035,
+        "hot_wallet": "0x876eabf441b2ee5b5b0554fd502a8e0600950cfa",
+        "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/exchange-wallets-bitfinexcom.yaml <- https://github.com/bitfinexcom/pub/blob/main/wallets.txt",
+        "distinct_senders": 11,
+        "senders_truncated": true,
+        "deposit_event": {
+          "tx": "0x0ee60494f16d7ec83990a2b6bfd69e4ac802e6bca84f6c8ed9e522877bcb7929",
+          "ts": 1523809725,
+          "asset": "ETH",
+          "amount": 7112.70904547
+        },
+        "sweep": "proven"
+      }
+    ],
+    "result": "ATTRIBUTED",
+    "hops": 3,
+    "endpoint": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+    "calls_at_hit": 12,
+    "entity": "bitfinex",
+    "entity_sahyog": "unknown",
+    "role": "deposit",
+    "role_basis": "sweep_proven",
+    "label_confidence": 0.5,
+    "label_source": "11 distinct senders; 100.0% of first 3 ETH spends -> bitfinex hot 0x876eabf441b2ee5b5b0554fd502a8e0600950cfa (last 0xc219aef459993b1c2484fdd2e7bc66e0f44c6d9876ce7501015d6241a7f40f82; labeled <- graphsense-tagpacks@7f9a5d1f/exchange-wallets-bitfinexcom.yaml <- https://github.com/bitfinexcom/pub/blob/main/wallets.txt)",
+    "deposit_event": {
+      "tx": "0x0ee60494f16d7ec83990a2b6bfd69e4ac802e6bca84f6c8ed9e522877bcb7929",
+      "ts": 1523809725,
+      "asset": "ETH",
+      "amount": 7112.70904547
+    },
+    "path": [
+      {
+        "from": "0x7f367cc41522ce07553e823bf3be79a889debe1b",
+        "to": "0x2718752b8895742349c82ca759b87c79b2466330",
+        "tx": "0x771dde2846284998acf035cb39dd9c772fa938ec79b5da47bcd461cc23b6eb7e",
+        "value": 1756.99221894,
+        "asset": "ETH",
+        "ts": 1516066029
+      },
+      {
+        "from": "0x2718752b8895742349c82ca759b87c79b2466330",
+        "to": "0x6f6394dce578bd1abab4780376704eddaf42785c",
+        "tx": "0xd7ba11c843895b22be58d4555e51f03681654eab0753bd250db99862101325a4",
+        "value": 5845.38111347,
+        "asset": "ETH",
+        "ts": 1523808646
+      },
+      {
+        "from": "0x6f6394dce578bd1abab4780376704eddaf42785c",
+        "to": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
+        "tx": "0x0ee60494f16d7ec83990a2b6bfd69e4ac802e6bca84f6c8ed9e522877bcb7929",
+        "value": 7112.70904547,
+        "asset": "ETH",
+        "ts": 1523809725
+      }
+    ],
+    "other_hits": [],
+    "source_doc": "https://home.treasury.gov/news/press-releases/sm1123"
   }
 }

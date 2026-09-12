@@ -27,6 +27,28 @@
   caveat: hops 1-2 are 8-in/19-out and 14-in/20-out batch txs from a 492-receipt address — may be a pass-through via
     an exchange hot wallet (below the 1,000-receipt hub threshold). Verify before crowning.
   source_doc: OFAC SDN 2020-03-02 (Tian Yinyin / Li Jiadong, Lazarus laundering)
+- id: potekhin-karasavidi-bitfinex
+  suspect_addr: '0x7F367cC41522cE07553e823bf3be79A889DEbe1B'
+  chain: eth
+  until_block: 25906777
+  expect: ATTRIBUTED
+  expected_entity: bitfinex
+  min_hops: 3
+  endpoint: '0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b'   # sweep_proven
+  verified: 2026-09-12 hand-walked against Etherscan (day 7a). All three hops are plain ETH value
+    transfers, status 1, input 0x, no logs (1756.99 -> 5845.38 -> 7112.71 ETH); both intermediates
+    (0x2718752b…, 0x6f6394dc…) are unlabeled EOAs with 8 and 3 lifetime movements — no hub, mixer or
+    DEX on the path. The endpoint sends 100% of all 11 of its ETH spends to Bitfinex hot wallet
+    0x876eabf441b2ee5b5b0554fd502a8e0600950cfa (labeled from bitfinexcom/pub/wallets.txt), and
+    received from 11 distinct senders before the sweep.
+  caveat: the endpoint is ITSELF OFAC-listed (Karasavidi Dmitrii, same 2020-09-16 designation as the
+    suspect Potekhin). Treasury says he "laundered the proceeds of the attacks into an account in his
+    name" and that the funds "was traced to Karasavidi's account" — consistent with a personal deposit
+    address at an exchange, but Treasury never names Bitfinex. The exchange identity rests on
+    Bitfinex's published hot-wallet list + the sweep behaviour, NOT on the government document.
+    Separately: the endpoint trips the truncated/hub flag, but 4,972 of its 4,996 txlist rows are
+    zero-value address-poisoning spam and only 24 are real value transfers (hub rule counts raw rows).
+  source_doc: https://home.treasury.gov/news/press-releases/sm1123
 - id: andreyev-hub-confuser
   suspect_addr: 1AeSq93WDNdLoEJ92sex7T8xQZoYYm8BtS
   chain: btc

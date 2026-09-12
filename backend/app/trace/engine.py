@@ -145,7 +145,10 @@ class Tracer:
         return None, ev, False
 
     # ---------- whole trace (sequential driver; tasks.py runs the same levels as chords) ----------
-    def run(self, wallet: str, since_block=0, max_hops=4, sink=None, on_level=None) -> dict:
+    def run(self, wallet: str, since_block=0, max_hops=4, sink=None, on_level=None, collect_all=False) -> dict:
+        """collect_all=True keeps walking the other branches after the first hit, so the attribution
+        engine sees EVERY reachable endpoint (§10) instead of shortest-path-to-first-label. Hit nodes
+        are never expanded either way — a labeled endpoint is a boundary (§9.3)."""
         t0 = time.time()
         chain, reg = self.chain, self.reg
         start = {"addr": wallet, "hop": 0, "since": since_block, "via": None, "utxos": None, "utxo_via": {}}
@@ -175,7 +178,7 @@ class Tracer:
             new_labels = propagate(reg, chain, [SameOwner(*e) for e in so_edges])
             if on_level:
                 on_level(hop, nxt, new_labels)
-            if hits:
+            if hits and not collect_all:
                 reason = "hit"
                 break
             if self.prov.calls >= self.max_calls:
@@ -238,21 +241,18 @@ class Tracer:
                 "addresses_seen": len(nodes), "flags": flags, **meta}
         if not hits:
             return {**base, "result": "UNATTRIBUTED", "hops": None, "endpoint": None, "role_basis": None,
-                    "reason": reason}
+                    "reason": reason, "candidates": []}
         best = sorted(hits, key=lambda h: (-RANK[h["result"]], h["hops"], -h["confidence"], h["endpoint"]))[0]
-        path, v = [], best["via"]
-        while v:   # the moves that actually carried the funds (per-UTXO provenance)
-            path.append({"from": v["from"], "to": v["to"], "tx": v["hash"], "value": v["value"],
-                         "asset": v["asset"], "ts": v["ts"], **({"change": v["change"]} if v.get("change") else {})})
-            v = v.get("prev")
+        path = _path_of(best)
         ent = reg.entities.get(best["entity"])
         sweep = next((e for e in evidence if e["address"] == best["endpoint"]), None)
-        return {**base, "result": best["result"], "hops": best["hops"], "endpoint": best["endpoint"],
+        return {**base, "candidates": _candidates(reg, hits, evidence),
+                "result": best["result"], "hops": best["hops"], "endpoint": best["endpoint"],
                 "calls_at_hit": best["calls_at_hit"], "entity": best["entity"],
                 "entity_sahyog": ent.sahyog if ent else "unknown", "role": best["role"],
                 "role_basis": best["role_basis"], "label_confidence": best["confidence"],
                 "label_source": best["source"], "deposit_event": (sweep or {}).get("deposit_event"),
-                "path": path[::-1],
+                "path": path,
                 "other_hits": [{k: h[k] for k in ("result", "endpoint", "entity", "hops", "role_basis")}
                                for h in hits if h is not best][:10]}
 
@@ -261,8 +261,41 @@ def _hit(node, lab, hops, calls) -> dict:
     full = lab.role == DEPOSIT and lab.basis in FULL_CLAIM
     return {"result": "ATTRIBUTED" if full else "ATTRIBUTED_INFRA", "endpoint": node["addr"], "hops": hops,
             "role_basis": lab.basis if lab.role == DEPOSIT else f"{lab.role}:{lab.basis}", "entity": lab.entity,
-            "role": lab.role, "source": lab.provenance, "confidence": lab.confidence, "calls_at_hit": calls,
+            "role": lab.role, "basis": lab.basis, "tier": lab.source,   # tier = SOURCE_TIER key, for §11.1
+            "source": lab.provenance, "confidence": lab.confidence, "calls_at_hit": calls,
             "via": node.get("via")}
+
+
+def _path_of(hit) -> list[dict]:
+    """The moves that actually carried the funds, start -> endpoint (per-UTXO provenance via `prev`)."""
+    path, v = [], hit.get("via")
+    while v:
+        path.append({"from": v["from"], "to": v["to"], "tx": v["hash"], "value": v["value"],
+                     "asset": v["asset"], "ts": v["ts"], **({"change": v["change"]} if v.get("change") else {})})
+        v = v.get("prev")
+    return path[::-1]
+
+
+def _candidates(reg, hits, evidence) -> list[dict]:
+    """EVERY reachable endpoint as an evidence vector for §10 — not just the winner. One entry per
+    endpoint (the shortest path to it wins); ranking happens in app.attribution, never here."""
+    out: dict[str, dict] = {}
+    for h in sorted(hits, key=lambda h: (h["hops"], -h["confidence"], h["endpoint"])):
+        if h["endpoint"] in out:
+            continue
+        ent, via = reg.entities.get(h["entity"]), h.get("via") or {}
+        path = _path_of(h)
+        sweep = next((e for e in evidence if e["address"] == h["endpoint"]), None)
+        out[h["endpoint"]] = {
+            "endpoint": h["endpoint"], "entity": h["entity"],
+            "entity_name": ent.name if ent else h["entity"],
+            "entity_sahyog": ent.sahyog if ent else "unknown",
+            "result": h["result"], "hops": h["hops"], "role": h["role"], "basis": h["basis"],
+            "role_basis": h["role_basis"], "tier": h["tier"], "label_confidence": h["confidence"],
+            "label_source": h["source"], "value": via.get("value", 0.0), "asset": via.get("asset"),
+            "ts": [p["ts"] for p in path], "path": path,
+            "deposit_event": (sweep or {}).get("deposit_event"), "sweep": sweep}
+    return list(out.values())
 
 
 def _edge_of(move):

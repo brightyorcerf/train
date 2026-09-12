@@ -14,6 +14,7 @@ import uuid
 
 from celery import chord
 
+from app.attribution.engine import attribute_result
 from app.db import connect
 from app.db.edges import save_edges, save_txs
 from app.db.evidence import save_labels
@@ -124,6 +125,7 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     out = t.result(ctx["wallet"], state["hits"], state["flags"], {n["addr"]: n for n in state["nodes"]},
                    state["so_edges"], state["evidence"], reason, state.get("wall", 0))
     out["trace_id"], out["case_id"], out["pins"] = ctx["trace_id"], ctx["case_id"], ctx["pins"]
+    out = attribute_result(out)   # §10/§11: ranked VASPs + one crowned target (or an honest abstention)
     conn = connect(autocommit=True)
     try:
         if derived:
