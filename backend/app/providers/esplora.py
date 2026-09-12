@@ -45,6 +45,7 @@ class EsploraProvider(BlockchainProvider):
         self.down_until: dict[str, float] = {}
         self.truncated: set[str] = set()   # addresses whose history exceeded the page cap
         self._last: dict[str, float] = {}
+        self._ann: dict[str, dict] = {}      # change/CoinJoin verdict per tx (stats lookups cost calls)
         self._cache: dict[str, object] = {}  # in-process memo over the store (confirmed txs, outspends)
         self._http = httpx.Client(timeout=timeout)
 
@@ -160,15 +161,17 @@ class EsploraProvider(BlockchainProvider):
     def annotate(self, tx: TxRecord) -> dict:
         """{'change': Change|None, 'coinjoin': reason|None}. Looks up output freshness only when the
         cheap features tie (2 calls), so most txs cost nothing extra."""
+        if tx.hash in self._ann:
+            return self._ann[tx.hash]
         cj = coinjoin_reason(tx)
         if cj:
-            return {"change": None, "coinjoin": cj}
+            return self._ann.setdefault(tx.hash, {"change": None, "coinjoin": cj})
         ch = detect_change(tx)
         outs = [o for o in tx.outputs if o.address]
         if ch is None and len(outs) == 2 and not (tx.input_addresses & {o.address for o in outs}):
             one_time = {o.address: self.address_stats(o.address)["funded_txo_count"] == 1 for o in outs}
             ch = detect_change(tx, one_time)
-        return {"change": ch, "coinjoin": None}
+        return self._ann.setdefault(tx.hash, {"change": ch, "coinjoin": None})
 
     def tx_edges(self, tx: TxRecord) -> list[Edge]:
         ann = self.annotate(tx)

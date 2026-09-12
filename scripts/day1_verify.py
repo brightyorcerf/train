@@ -28,6 +28,7 @@ REPO = Path(__file__).resolve().parents[1]
 from app.labels.propagate import propagate, same_owner_edges  # noqa: E402
 from app.labels.registry import DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry  # noqa: E402
 from app.labels.sweep import btc_sweep_proof, evm_sweep_proof  # noqa: E402
+from app.providers.base import Edge  # noqa: E402
 from app.providers.esplora import EsploraProvider, ProviderError  # noqa: E402
 from app.providers.etherscan_v2 import EtherscanV2Provider  # noqa: E402
 
@@ -75,7 +76,10 @@ def expand_evm(prov: EtherscanV2Provider, node: dict, until: int):
                     "prev": node.get("via")} for e in edges]
 
 
-def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5, label_set=None):
+def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5, label_set=None, sink=None):
+    """sink(hop, edges, txs, labels=()) — optional graph/DB writer (§7.6 system of record + Neo4j index).
+    The final call carries the labels this trace DERIVED (sweep-proven, cluster-propagated): they are
+    evidence, not label set, but a candidate endpoint is only visible in the graph with them."""
     t0 = time.time()
     reg = PgRegistry(label_set)
     print(f"labels: {reg.version} — {reg.n_labels} across {len(reg.entities)} entities ({time.time() - t0:.1f}s)")
@@ -144,6 +148,9 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
             if chain == "btc":
                 for t in spends:
                     so_edges += same_owner_edges(t)
+            if sink:   # normalized edges: BTC tx hypernodes (§7.3), EVM movements (§7.2)
+                sink(hop, [e for t in spends for e in prov.tx_edges(t)] if chain == "btc" else spends,
+                     spends if chain == "btc" else ())
             # Sweep check (§6.2c) on every non-start node before expanding it.
             try:
                 stop = node is not start and check_node(node, spends, moves)
@@ -179,6 +186,9 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
                     nodes[k] = child
                     nxt.append(child)
         propagate(reg, chain, so_edges)  # co-input labels become visible to the next level
+        if sink and so_edges:
+            sink(hop, [Edge(e.a, e.b, "same_owner", e.tx_hash, 0, "", 0, 0, None, {"confidence": e.confidence})
+                       for e in so_edges], ())
         if hits:
             reason = "hit"
             break
@@ -192,6 +202,8 @@ def trace(wallet, chain, since_block=0, until_block=10**9, max_hops=4, fanout=5,
     else:
         reason = f"hop budget ({max_hops}) exhausted"
 
+    if sink:   # what this trace proved: the endpoints that make candidates enumerable (§10)
+        sink(hop, [], [], [l for labs in reg.labels.values() for l in labs])
     wall = round(time.time() - t0, 1)
     # Budget honesty: a hit found after the call budget was spent does not count.
     hits = [h for h in hits if h["calls_at_hit"] <= MAX_CALLS]
@@ -234,11 +246,40 @@ def main():
     ap.add_argument("--expect", choices=["ATTRIBUTED", "ATTRIBUTED_INFRA", "UNATTRIBUTED"])
     ap.add_argument("--record", choices=["controlled_case", "public_case", "discovery_case"])
     ap.add_argument("--source-doc", default="")
+    ap.add_argument("--graph", action="store_true",
+                    help="persist edges to Postgres (system of record) and MERGE them into Neo4j")
     a = ap.parse_args()
     if a.max_hops > HARD_MAX_HOPS:
         sys.exit(f"--max-hops capped at {HARD_MAX_HOPS}")
 
-    r = trace(a.wallet, a.chain, a.since_block, a.until_block, a.max_hops, a.fanout)
+    sink, trace_id, fin = None, None, None
+    if a.graph:
+        import uuid
+
+        from app.db import connect, init_schema
+        from app.db.edges import save_edges, save_txs
+        from app.db.evidence import save_labels
+        from app.graph.client import Graph
+        init_schema()
+        trace_id, conn, g = str(uuid.uuid4()), connect(autocommit=True), Graph()
+        g.init()
+
+        def sink(hop, edges, txs, labels=()):
+            save_edges(conn, a.chain, edges, trace_id, hop)
+            save_txs(conn, a.chain, txs)
+            g.merge_edges(a.chain, edges)
+            g.merge_txs(a.chain, txs)
+            if labels:
+                save_labels(conn, trace_id, a.chain, labels)
+                g.merge_labels(a.chain, labels, {})
+
+        fin = lambda: (g.close(), conn.close())  # noqa: E731
+        print(f"graph: trace_id {trace_id}")
+
+    r = trace(a.wallet, a.chain, a.since_block, a.until_block, a.max_hops, a.fanout, sink=sink)
+    if trace_id:
+        r["trace_id"] = trace_id
+        fin()
     print(json.dumps(r, indent=2, default=str))
     print(f"\n{r['result']}: " + (f"{r['entity']} via {r['endpoint']} ({r['role_basis']}) in {r['hops']} hop(s)"
                                  if r["endpoint"] else f"no labeled endpoint — {r['reason']}")
