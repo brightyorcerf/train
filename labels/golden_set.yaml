@@ -51,6 +51,42 @@
     Separately: the endpoint trips the truncated/hub flag, but 4,972 of its 4,996 txlist rows are
     zero-value address-poisoning spam and only 24 are real value transfers (hub rule counts raw rows).
   source_doc: https://home.treasury.gov/news/press-releases/sm1123
+- id: wuhuihui-binance
+  suspect_addr: 12w6v1qAaBc4W8h8C2Cu5SKFaKDSv3erUW
+  chain: btc
+  expect: ATTRIBUTED
+  expected_entity: binance
+  min_hops: 2          # shallow for a discovery case, but the endpoint is sweep-proven, not labeled
+  endpoint: 19msUPsm7cHG8pGTavUr2AeZJsoRTNju1P   # sweep_proven
+  verified: >
+    2026-09-12 hand-walked from the raw store (0 upstream calls). Hop 1 (bc4b0754) is a
+    single-input spend BY the suspect: 4.7850 BTC in, paying 4.2272 to 1Gog6U87… plus 0.5578
+    change. Hop 2 (5ee42bd3) spends that same 4.2272 UTXO unsplit as one of 13 inputs
+    (10 distinct addresses, 54.8066 BTC total) and pays 50.0 BTC to the deposit address —
+    1Gog6U87… is provably an input, so the suspect's coin is inside the deposit. Every input is
+    4.18-4.27 BTC, i.e. a uniform consolidation batch rather than arbitrary pooling. annotate()
+    reports no coinjoin and no change output on hop 2. The endpoint then sweeps 100.0% of
+    tx d4e0c06b to labeled Binance hot wallet 1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s; sweep "proven".
+    The intermediate is 69 funded / 68 spent txos — busy, but far below the 1,000-receipt hub bar.
+  caveat: >
+    the suspect is NOT itself an input to the hop-2 deposit tx, and that tx aggregates 13 inputs,
+    so the suspect funds only ~7.7% of the 50 BTC that lands at Binance. The claim this case
+    supports is "the suspect's funds reached this Binance deposit address", NOT that the deposit
+    is solely theirs. distinct_senders on the sweep is reported as 27 with senders_truncated=true,
+    so 27 is a floor, not a count.
+  source_doc: OFAC SDN sdn_advanced.xml, listed 2023-04-24, individual:DPRK3 (Wu Huihui)
+- id: hydramarket-coinjoin-confuser
+  suspect_addr: 123WBUDmSJv4GctdVEz6Qq6z8nXSKrJ4KX
+  chain: btc
+  expect: UNATTRIBUTED
+  why: hop 3 reaches four separate equal-output CoinJoins (42/60/40/46 outputs of ~0.10994 BTC from
+    64/86/51/64 distinct input addresses) — 1:1 value linkage is broken by construction. Distinct
+    boundary type from the andreyev service-hub confuser.
+  verified: >
+    2026-09-12 replayed offline at the engine ceiling (--max-hops 5; 6 is capped to HARD_MAX_HOPS).
+    Terminates UNATTRIBUTED with reason "no further outgoing value" — a genuine dead end, NOT
+    "hop budget exhausted", so no attribution is being masked by the budget. 0 upstream calls.
+  source_doc: OFAC SDN sdn_advanced.xml, listed 2022-04-05, entity:CYBER2 (Hydra Market)
 - id: andreyev-hub-confuser
   suspect_addr: 1AeSq93WDNdLoEJ92sex7T8xQZoYYm8BtS
   chain: btc

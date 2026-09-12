@@ -20,7 +20,7 @@
     "calls": 200,
     "upstream": 0,
     "store_hits": 200,
-    "wall_s": 2.3,
+    "wall_s": 0.8,
     "flags": [
       "ofac:Polyanin Yevgeniy Igorevich@3LkPxybBzP7EkLmg8fH2jDhxDqaZuu59H3(hop 2)"
     ],
@@ -48,7 +48,7 @@
     "calls": 40,
     "upstream": 0,
     "store_hits": 35,
-    "wall_s": 0.4,
+    "wall_s": 0.3,
     "flags": [
       "partial:provider_unavailable at 32LSX4XUTYdL1a6XmgzNuBmTDBpwboE9M8 (hop 3): offline: /tx/d046306fd006d5c48623f37f993e6b5a76e4458ab3d741a1e1bf9b62f97e134d/outspend/0 not in the raw store (scopes ['",
       "partial:provider_unavailable at 3EPvxq3c3YFWvfGjb85ofB7m3gKSsQPB62 (hop 3): offline: /tx/d046306fd006d5c48623f37f993e6b5a76e4458ab3d741a1e1bf9b62f97e134d/outspend/1 not in the raw store (scopes ['",
@@ -78,7 +78,7 @@
     "calls": 98,
     "upstream": 0,
     "store_hits": 77,
-    "wall_s": 3.9,
+    "wall_s": 1.9,
     "flags": [
       "coinjoin_boundary:b871624fbe1178e25d9717c252754289b4abb2bc61ae88a7a2fb93f6a9f327ff(18 equal outputs of 600000000 sats from 21 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)",
       "coinjoin_boundary:55a8c633aaf65c616528aef41ef939f41f00ac6672bf8a906413b6fb0cbaeb4b(18 equal outputs of 600000000 sats from 32 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)",
@@ -116,6 +116,61 @@
     "stable": "20/20"
   },
   {
+    "id": "wuhuihui-binance",
+    "chain": "btc",
+    "expect": "ATTRIBUTED",
+    "expected_entity": "binance",
+    "state": "ATTRIBUTED",
+    "recommended": "binance",
+    "ambiguous": false,
+    "ranked": [
+      [
+        "binance",
+        70
+      ]
+    ],
+    "hops": 2,
+    "min_hops": 2,
+    "endpoint": "19msUPsm7cHG8pGTavUr2AeZJsoRTNju1P",
+    "expected_endpoint": "19msUPsm7cHG8pGTavUr2AeZJsoRTNju1P",
+    "calls": 39,
+    "upstream": 0,
+    "store_hits": 30,
+    "wall_s": 0.3,
+    "flags": [
+      "partial:provider_unavailable at 373bM5zNuwVPYe8aWpvCN1gnsyTcmswZod (hop 2): offline: /tx/5ee42bd36a3a9eebc1b1d0646bb139dbb8aa2c0a53b7e297c2d26de876896788/outspend/1 not in the raw store (scopes ['",
+      "partial:provider_unavailable at 13u1pzpKWfTHZYhuSsCqek52L9QCQrCfQ8 (hop 3): offline: /tx/7e0468bcd9bdad9d93b5f472c54da1b361c7733ec6e2a28226411524a3adcb3e/outspend/1 not in the raw store (scopes ['",
+      "partial:provider_unavailable at 14HUvCXuYDbb21pU88LgQ7LhoaFe8X8SeN (hop 3): offline: /tx/7e0468bcd9bdad9d93b5f472c54da1b361c7733ec6e2a28226411524a3adcb3e/outspend/2 not in the raw store (scopes ['"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
+    "id": "hydramarket-coinjoin-confuser",
+    "chain": "btc",
+    "expect": "UNATTRIBUTED",
+    "expected_entity": null,
+    "state": "UNATTRIBUTED",
+    "recommended": null,
+    "ambiguous": false,
+    "ranked": [],
+    "hops": null,
+    "min_hops": null,
+    "endpoint": null,
+    "expected_endpoint": null,
+    "calls": 57,
+    "upstream": 0,
+    "store_hits": 43,
+    "wall_s": 0.6,
+    "flags": [
+      "partial:provider_unavailable at 3N9CVkiUR3ej5uVWLtVgk8Vx23U2ZmH4Zu (hop 3): offline: /tx/6a8154d93a99312b8c92082e73d7470c398dd62fa684d1c517b928c39d186c66/outspend/0 not in the raw store (scopes ['",
+      "coinjoin_boundary:e5e58e2058fed3b8e6a56d505cd9d0a415d49e71d22148fccd9684c6e41a6546(42 equal outputs of 10994615 sats from 64 distinct input addresses) from bc1q9gpgex4azgl8et5jaxatd4kkwckzsyswnzqkj6 (hop 3)",
+      "coinjoin_boundary:f744bea5d68861bad3dd52b307419895e7040d722640ea5b956b7074fa4245fa(60 equal outputs of 10994138 sats from 86 distinct input addresses) from bc1qa5y4hj332uhjk9p53t67wj9lqtptw95zxyunyd (hop 3)"
+    ],
+    "verdict": "CORRECT",
+    "stable": "20/20"
+  },
+  {
     "id": "andreyev-hub-confuser",
     "chain": "btc",
     "expect": "UNATTRIBUTED",
@@ -131,7 +186,7 @@
     "calls": 19,
     "upstream": 0,
     "store_hits": 19,
-    "wall_s": 9.5,
+    "wall_s": 3.8,
     "flags": [
       "service_hub_boundary:12cgpFdJViXbwHbhrA3TuW1EGnL25Zqc3P(77195 receipts, hop 1)"
     ],
