@@ -14,6 +14,7 @@ import uuid
 
 from celery import chord
 
+from app.api.timeline import Phases
 from app.attribution.engine import attribute_result
 from app.db import connect
 from app.db.edges import save_edges, save_txs
@@ -64,16 +65,23 @@ def job(trace_id) -> dict:
 def expand_task(self, ctx: dict, node: dict) -> dict:
     """One frontier node: fetch its outgoing value, run sweep + boundary checks, persist its edges."""
     t = _tracer(ctx)
-    r = t.expand_node(node)
+    ph = Phases()
+    with ph.phase("fetch"):          # provider I/O + normalization happen together inside expand_node
+        r = t.expand_node(node)
     conn = connect(autocommit=True)
     try:
-        save_edges(conn, ctx["chain"], r["edges"], ctx["trace_id"], node["hop"])
-        save_txs(conn, ctx["chain"], r["txs"])
-        if ctx.get("graph"):
-            g = Graph()
-            g.merge_edges(ctx["chain"], r["edges"])
-            g.merge_txs(ctx["chain"], r["txs"])
-            g.close()
+        # "graph" covers BOTH stores plus per-node Neo4j driver setup: save_edges/save_txs into
+        # Postgres (the system of record) and the Graph() connect -> MERGE -> close cycle. The
+        # driver init is per frontier node, so this phase dominates the breakdown; that is the
+        # cost of the derived index, not of the graph writes alone.
+        with ph.phase("graph"):
+            save_edges(conn, ctx["chain"], r["edges"], ctx["trace_id"], node["hop"])
+            save_txs(conn, ctx["chain"], r["txs"])
+            if ctx.get("graph"):
+                g = Graph()
+                g.merge_edges(ctx["chain"], r["edges"])
+                g.merge_txs(ctx["chain"], r["txs"])
+                g.close()
         conn.execute("INSERT INTO audit_log (trace_id, input_params, upstream_hash, actor) VALUES (%s,%s,%s,%s)",
                      (ctx["trace_id"], json.dumps({"address": node["addr"], "hop": node["hop"],
                                                    "chain": ctx["chain"], "snapshot": ctx["until"]}),
@@ -83,7 +91,7 @@ def expand_task(self, ctx: dict, node: dict) -> dict:
     return {"node": node, "moves": r["moves"], "flags": r["flags"], "so_edges": r["so_edges"],
             "hit": _hit(node, r["hit"], node["hop"], 0) if r["hit"] else None,
             "evidence": r["evidence"], "stop": r["stop"], "calls": t.prov.calls,
-            "upstream": t.prov.upstream, "stale": t.prov.stale}
+            "upstream": t.prov.upstream, "stale": t.prov.stale, "phases": ph.as_dict()}
 
 
 @app.task(queue="trace")
@@ -94,6 +102,12 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     state["calls"] += sum(r["calls"] for r in results)
     state["upstream"] += sum(r["upstream"] for r in results)
     state["stale"] += [s for r in results for s in r["stale"]]
+    # §16: each worker timed its own phases; sum them across the level. The sum is work done, not
+    # elapsed time (the tasks ran in parallel) — timeline.summarize() states that in its response.
+    ph = Phases(state.get("phases"))
+    for r in results:
+        ph.merge(r.get("phases"))
+    state["phases"] = ph.as_dict()
     nodes = {n["addr"]: n for n in state["nodes"]}
     nxt = []
     for r in sorted(results, key=lambda r: r["node"]["addr"]):
@@ -125,7 +139,9 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     out = t.result(ctx["wallet"], state["hits"], state["flags"], {n["addr"]: n for n in state["nodes"]},
                    state["so_edges"], state["evidence"], reason, state.get("wall", 0))
     out["trace_id"], out["case_id"], out["pins"] = ctx["trace_id"], ctx["case_id"], ctx["pins"]
-    out = attribute_result(out)   # §10/§11: ranked VASPs + one crowned target (or an honest abstention)
+    with ph.phase("score"):
+        out = attribute_result(out)   # §10/§11: ranked VASPs + one crowned target (or an abstention)
+    out["phases"] = ph.as_dict()
     conn = connect(autocommit=True)
     try:
         if derived:
@@ -156,13 +172,24 @@ def start_trace(wallet: str, chain: str, snapshot: int, max_hops=4, fanout=5, la
     """Create the case + job (pins recorded), then kick off hop 1. Returns ids immediately (202, §14)."""
     case_id, trace_id, pins = open_case(wallet, chain, snapshot, label_set, source,
                                         {"max_hops": max_hops, "fanout": fanout})
+    return dispatch_trace(case_id, trace_id, pins, wallet, chain, snapshot, max_hops, fanout,
+                          graph=graph, offline=offline)
+
+
+def dispatch_trace(case_id: str, trace_id: str, pins: dict, wallet: str, chain: str, snapshot: int,
+                   max_hops=4, fanout=5, graph=False, offline=False) -> dict:
+    """Kick off hop 1 for a case/job row that ALREADY exists.
+
+    §14 splits case creation (POST /cases -> case_id) from execution (POST /trace {case_id}), so the
+    dispatch half has to be callable on its own. open_case already inserts the trace_jobs row in
+    state QUEUED; this is the seam where it becomes FETCHING."""
     ctx = {"wallet": wallet, "chain": chain, "until": snapshot, "max_hops": min(max_hops, HARD_MAX_HOPS),
            "fanout": fanout, "trace_id": trace_id, "case_id": case_id, "pins": pins, "graph": graph,
            "offline": offline}
     reg = PgRegistry(pins["label_set_version"])
     start = {"addr": wallet, "hop": 0, "since": 0, "via": None, "utxos": None, "utxo_via": {}}
     state = {"hop": 1, "nodes": [start], "hits": [], "flags": [], "so_edges": [], "evidence": [],
-             "calls": 0, "upstream": 0, "stale": []}
+             "calls": 0, "upstream": 0, "stale": [], "phases": {}}
     lab = reg.best(chain, wallet)
     if lab:
         state["hits"].append(_hit(start, lab, 0, 0))
