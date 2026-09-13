@@ -238,6 +238,11 @@ export function GraphView({ r }: Props) {
       style: STYLE,
       layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.15, padding: 24 },
       wheelSensitivity: 0.2,
+      // An abstained trace can have a spine of one node, and fitting one node to a 420px box zooms
+      // it until a single octagon fills the canvas and the panel reads as broken. Cap the zoom so a
+      // sparse graph renders as a sparse graph — which is what it honestly is.
+      maxZoom: 1.6,
+      minZoom: 0.05,
     })
     c.on('tap', 'node', (ev) => setSel(ev.target.data('raw')))
     c.on('tap', (ev) => { if (ev.target === c) setSel(null) })
