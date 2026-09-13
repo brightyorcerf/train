@@ -8,18 +8,24 @@ TWO CASE SHAPES SHIP SIDE BY SIDE, deliberately:
 One request body serves both: `wallets` with a single entry behaves as §14's single-wallet case,
 and `dispatch` controls whether creation also starts the trace.
 
-/report/{id} is NOT implemented — reports are day 12 (WeasyPrint). It returns 501 with the
-disclosure payload's location, rather than a placeholder PDF that looks like a deliverable.
+/report/{id} renders with WeasyPrint and streams from memory — no writable volume is mounted on
+this container, so `reports` records the PDF's content hash instead of a path to a file nobody
+outside the container could fetch.
 """
+import uuid
+
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.api import sahyog as sahyog_mock
+from app.api.report import build_pdf
 from app.api.timeline import summarize
 from app.attribution.convergence import converge
+from app.attribution.engine import attribute_result
 from app.db import connect
 from app.labels.registry import PgRegistry
 from app.scoring.engine import score_candidate
+from app.scoring.weights import WEIGHTS, perturb, weight_hash
 from app.trace.engine import Tracer
 from app.trace.tasks import dispatch_trace, job, open_case, start_trace
 
@@ -46,6 +52,14 @@ class TraceRequest(BaseModel):
     case_id: str
 
 
+class RescoreRequest(BaseModel):
+    """A what-if over a STORED trace. Nothing here changes the frozen profile (§11.1)."""
+    weights: dict[str, float] | None = None
+    perturb_pct: float | None = Field(default=None, gt=0, le=1)
+    seed: int = 0
+    profiles: int | None = Field(default=None, ge=1, le=50)
+
+
 def _chain(chain: str) -> str:
     if chain not in CHAINS:
         raise HTTPException(400, f"unsupported chain {chain} (have {', '.join(CHAINS)})")
@@ -59,6 +73,27 @@ def _result(trace_id: str) -> dict:
     if j["state"] != "DONE":
         raise HTTPException(409, f"trace is {j['state']}")
     return j["result"]
+
+
+def _response_hashes(r: dict, limit: int = 12) -> list[dict]:
+    """The §13 'response hash' rows: the cached provider bytes this trace was computed from.
+
+    Keyed by the trace's own pinned snapshot, so a trace served from an earlier snapshot's rows
+    legitimately returns none — the surface says that rather than widening the query until
+    something matches."""
+    block = (r.get("pins") or {}).get("snapshot_block")
+    addrs = [r.get("wallet")] + [(c.get("nearest") or {}).get("endpoint")
+                                 for c in r.get("vasp_candidates", [])]
+    addrs = [a for a in addrs if a]
+    if block is None or not addrs:
+        return []
+    with connect() as c:
+        rows = c.execute(
+            "SELECT request_key, request, content_hash, provider, fetched_at FROM raw_response "
+            "WHERE scope = %s AND request ILIKE ANY(%s) ORDER BY fetched_at LIMIT %s",
+            (f"snapshot:{block}", [f"%{a}%" for a in addrs], limit)).fetchall()
+    keys = ("request_key", "request", "content_hash", "provider", "fetched_at")
+    return [dict(zip(keys, x)) for x in rows]
 
 
 @app.get("/health")
@@ -150,7 +185,8 @@ def trace_provenance(trace_id: str):
     r = _result(trace_id)
     return {"trace_id": trace_id, "wallet": r.get("wallet"), "pins": r.get("pins", {}),
             "provenance": sahyog_mock.provenance(r),
-            "sweep_evidence": r.get("sweep_evidence", []), "flags": r.get("flags", [])}
+            "sweep_evidence": r.get("sweep_evidence", []), "flags": r.get("flags", []),
+            "response_hashes": _response_hashes(r)}
 
 
 # ---------- scoring (§11.1) ----------
@@ -175,6 +211,55 @@ def wallet_score(address: str, chain: str = "btc"):
             "score": idx, "of": 100, "breakdown": breakdown,
             "note": "confidence INDEX, not a probability or a percentage (§11.1). Scored from the "
                     "label alone: no path, so temporal and dust factors are unpopulated."}
+
+
+@app.post("/trace/{trace_id}/rescore")
+def rescore(trace_id: str, req: RescoreRequest):
+    """Re-rank a FINISHED trace under a different weight profile — the §11.2 perturbation answer,
+    live (Q&A #3).
+
+    This re-runs `attribute_result`, the same pure function the eval harness calls, so the slider
+    in the UI and the shipped rank-stability number are one test rather than two implementations
+    that could drift. It reads a stored result and touches no provider: zero API calls.
+
+    The frozen profile is never written to. `weight_hash` in the response is the PERTURBED hash,
+    and `frozen_weight_hash` is what the case is actually pinned to — a report always names the
+    profile that produced it (§12)."""
+    r = _result(trace_id)
+    base_order = [c["entity"] for c in r.get("vasp_candidates", [])]
+    base_rec = r.get("recommended")
+
+    if req.profiles:
+        pct = req.perturb_pct or 0.2
+        same = sum(attribute_result(r, weights=perturb(pct, seed=s))["recommended"] == base_rec
+                   for s in range(req.profiles))
+        return {"trace_id": trace_id, "base_recommended": base_rec,
+                "ranked": [{"entity": c["entity"], "entity_name": c.get("entity_name"),
+                            "score": c["score"]} for c in r.get("vasp_candidates", [])],
+                "recommended": base_rec, "rank_unchanged": same == req.profiles,
+                "stability": {"unchanged": same, "n": req.profiles, "pct": pct},
+                "note": f"top-1 unchanged in {same} of {req.profiles} seeded +/-{int(pct * 100)}% "
+                        "profiles. Each profile jitters every weight and renormalizes to 1."}
+
+    w = dict(req.weights) if req.weights else (
+        perturb(req.perturb_pct, seed=req.seed) if req.perturb_pct else dict(WEIGHTS))
+    if set(w) != set(WEIGHTS):
+        raise HTTPException(400, f"weights must name exactly {sorted(WEIGHTS)}")
+    if any(v < 0 for v in w.values()) or sum(w.values()) <= 0:
+        raise HTTPException(400, "weights must be non-negative and sum above zero")
+    total = sum(w.values())
+    w = {k: v / total for k, v in w.items()}      # renormalized, exactly as perturb() does
+
+    alt = attribute_result(r, weights=w)
+    ranked = [{"entity": c["entity"], "entity_name": c.get("entity_name"), "score": c["score"]}
+              for c in alt["vasp_candidates"]]
+    return {"trace_id": trace_id, "weights": w, "weight_hash": weight_hash(w),
+            "frozen_weights": dict(WEIGHTS), "frozen_weight_hash": weight_hash(),
+            "recommended": alt["recommended"], "base_recommended": base_rec,
+            "separation": alt["separation"], "separation_pts": alt["separation_pts"],
+            "ranked": ranked, "base_ranked": base_order,
+            "rank_unchanged": [c["entity"] for c in alt["vasp_candidates"]] == base_order,
+            "note": "what-if only — the case stays pinned to the frozen profile (§11.1)."}
 
 
 # ---------- convergence (§8) ----------
@@ -219,10 +304,23 @@ def sahyog_disclosure(trace_id: str, case_reference: str | None = None):
             "disclosure_payload": payload}
 
 
-# ---------- report (day 12) ----------
+# ---------- report (§13) ----------
 @app.get("/report/{trace_id}")
 def report(trace_id: str):
-    _result(trace_id)     # 404/409 semantics stay consistent with the other read endpoints
-    raise HTTPException(501, "PDF reports are day 12 (WeasyPrint). The machine-readable evidence "
-                             f"is available now at /trace/{trace_id}/provenance and "
-                             f"/sahyog/disclosure?trace_id={trace_id}")
+    """The artifact an investigator files: the four determinism pins on the face, the ranked
+    candidates, the provenance, and BOTH routing branches (§17).
+
+    Streamed from memory — see the module docstring. The row in `reports` records the content hash
+    so a filed PDF can be matched back to the run that produced it."""
+    r = _result(trace_id)
+    pdf, digest = build_pdf(r, _response_hashes(r))
+    pins = r.get("pins", {})
+    if r.get("case_id"):
+        with connect() as c:
+            c.execute("INSERT INTO reports (id, case_id, pdf_path, content_hash, adapter_version, "
+                      "weight_hash) VALUES (%s, %s, NULL, %s, %s, %s)",
+                      (str(uuid.uuid4()), r["case_id"], digest,
+                       pins.get("adapter_version"), pins.get("weight_hash")))
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="vasp-attribution-{trace_id[:8]}.pdf"',
+        "X-Content-Hash": digest})

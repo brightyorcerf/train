@@ -7,6 +7,10 @@ import { CaseList } from './components/CaseList'
 import { Leaderboard } from './components/Leaderboard'
 import { RecommendedTarget } from './components/RecommendedTarget'
 import { NearestPanel } from './components/NearestPanel'
+import { ScoreBreakdown } from './components/ScoreBreakdown'
+import { ProvenanceCard } from './components/ProvenanceCard'
+import { ConvergencePanel } from './components/ConvergencePanel'
+import { ReportButton } from './components/ReportButton'
 
 export default function App() {
   const [cases, setCases] = useState<CaseRow[]>([])
@@ -84,8 +88,13 @@ export default function App() {
         <>
           <Leaderboard r={result} />
           <NearestPanel r={result} />
+          <ScoreBreakdown r={result} />
+          <ProvenanceCard r={result} />
+          <ReportButton r={result} />
         </>
       )}
+
+      <ConvergencePanel cases={cases} />
     </div>
   )
 }

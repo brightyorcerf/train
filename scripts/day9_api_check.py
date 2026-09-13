@@ -9,7 +9,12 @@ things this gate is really defending:
   2. the SAHYOG mock never claims a disclosure can be routed for a VASP that is not onboarded —
      every endpoint our golden cases reach is sahyog:unknown, and the payload must say so.
 
-    backend/.venv/bin/python scripts/day9_api_check.py
+Run it in the API container, not the host venv — /report/{id} renders with WeasyPrint, which is
+installed in the image and not on the host. PYTHONPATH is required because running a script puts
+the SCRIPT's directory on sys.path rather than the workdir where `app` lives:
+
+    docker compose run --rm -e PYTHONPATH=/app \
+        -v "$PWD/scripts:/repo/scripts:ro" api python /repo/scripts/day9_api_check.py
 """
 import sys
 import time
@@ -165,10 +170,24 @@ def main():
         check("GET /convergence answers for the multi-wallet case (§8)",
               "shared_nodes" in cv and cv["trace_ids"] == tids, f"{cv.get('n_shared')} shared")
 
-    # ---- report is day 12: say so, don't fake it ----
+    # ---- the report is built now (§13): assert the real artifact, not a placeholder ----
+    # This check used to assert 501 ("reports are day 12 — say so, don't fake it"). The point was
+    # never the status code: it was that nothing may look like a deliverable until it is one. So
+    # it now verifies the genuine PDF and the routing honesty inside it.
     rep = c.get(f"/report/{tid}")
-    check("GET /report/{id} -> 501, pointing at the evidence that DOES exist (day 12)",
-          rep.status_code == 501 and "provenance" in rep.json()["detail"])
+    check("GET /report/{id} -> a real PDF, not a placeholder (§13)",
+          rep.status_code == 200 and rep.headers["content-type"] == "application/pdf"
+          and rep.content[:5] == b"%PDF-" and len(rep.content) > 5000,
+          f"{rep.status_code} · {len(rep.content)} bytes · "
+          f"hash {rep.headers.get('x-content-hash', '')[:12]}")
+
+    from app.api.report import build_html          # noqa: E402
+    doc = build_html(c.get(f"/trace/{tid}").json())
+    check("the report prints BOTH routing branches — portal for an onboarded VASP, MLAT for ours",
+          "ROUTABLE — SAHYOG portal" in doc and "NOT ROUTABLE — NOT on the SAHYOG portal" in doc
+          and all(p in doc for p in ("snapshot block", "label set version", "weight hash",
+                                     "adapter version")),
+          "both branches + four determinism pins on the face")
     check("unknown trace -> 404 on the read endpoints",
           c.get("/trace/00000000-0000-0000-0000-000000000000").status_code == 404)
 
