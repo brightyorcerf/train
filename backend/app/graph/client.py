@@ -39,7 +39,7 @@ class Graph:
             s.run("MATCH (n) DETACH DELETE n")
 
     # ---------- writes ----------
-    def merge_edges(self, chain: str, edges, batch: int = 5000) -> int:
+    def merge_edges(self, chain: str, edges, batch: int = 500) -> int:
         """edges: providers.base.Edge (or any object with the same fields). Account kinds become SENT;
         funds/credits become the :Tx hypernode shape; same_owner becomes the clustering edge."""
         rows = [{"src": e.src, "dst": e.dst, "kind": e.kind, "tx_hash": e.tx_hash, "idx": str(e.index or ""),
@@ -55,23 +55,25 @@ class Graph:
                 n += len(part)
         return n
 
-    def merge_txs(self, chain: str, txs) -> int:
+    def merge_txs(self, chain: str, txs, batch: int = 500) -> int:
         rows = [{"hash": t.hash, "block": t.block, "ts": t.ts, "total_in": float(t.total_in),
                  "total_out": float(t.total_out)} for t in txs]
         with self.driver.session() as s:
-            s.run("UNWIND $rows AS r MERGE (t:Tx {chain:$chain, hash:r.hash}) "
-                  "SET t.block=r.block, t.ts=r.ts, t.total_in=r.total_in, t.total_out=r.total_out",
-                  chain=chain, rows=rows)
+            for i in range(0, len(rows), batch):
+                s.run("UNWIND $rows AS r MERGE (t:Tx {chain:$chain, hash:r.hash}) "
+                      "SET t.block=r.block, t.ts=r.ts, t.total_in=r.total_in, t.total_out=r.total_out",
+                      chain=chain, rows=rows[i:i + batch])
         return len(rows)
 
-    def merge_labels(self, chain: str, labels, entities: dict) -> int:
+    def merge_labels(self, chain: str, labels, entities: dict, batch: int = 500) -> int:
         rows = [{"address": l.address, "role": l.role, "entity": l.entity, "source": l.source,
                  "basis": l.basis, "confidence": float(l.confidence), "provenance": l.provenance[:400],
                  "name": entities[l.entity].name if l.entity in entities else l.entity,
                  "type": entities[l.entity].type if l.entity in entities else "unknown",
                  "sahyog": entities[l.entity].sahyog if l.entity in entities else "unknown"} for l in labels]
         with self.driver.session() as s:
-            s.run(_LABELS, chain=chain, rows=rows)
+            for i in range(0, len(rows), batch):
+                s.run(_LABELS, chain=chain, rows=rows[i:i + batch])
         return len(rows)
 
     # ---------- reads ----------

@@ -29,6 +29,11 @@ export function HUD({ r, elapsed, running }: { r: TraceResult | null; elapsed: n
         <b className="green">₹0</b>
         <span className="dim"> free-tier providers</span>
       </span>
+      {r?.partial && (
+        <span className="tag amber" title={r.flags.filter((f) => f.startsWith('partial:')).join('\n')}>
+          partial — degraded source, result stands on Postgres
+        </span>
+      )}
       {r && (
         <span className="dim mono" style={{ marginLeft: 'auto', fontSize: 12 }}>
           block {r.pins.snapshot_block} · {r.pins.label_set_version} · {r.pins.weight_hash}

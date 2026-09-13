@@ -13,6 +13,7 @@ import json
 import uuid
 
 from celery import chord
+from neo4j.exceptions import DriverError, Neo4jError
 
 from app.api.timeline import Phases
 from app.attribution.engine import attribute_result
@@ -71,6 +72,38 @@ def trace_failed(request, exc, tb, trace_id: str):
                   (f"{type(exc).__name__}: {str(exc)[:400]}", trace_id))
 
 
+def _index(chain, edges, txs, labels=None, entities=None) -> list[str]:
+    """Write the DERIVED Neo4j index (§7.6) — and never let it kill a trace.
+
+    Postgres is the system of record and is already committed by the time this runs, so a Neo4j
+    write-side drop costs us an index, not a result. Observed 2026-09-13: one 2935-edge wallet
+    tripped Neo4j's 'Response write failure', the driver raised ServiceUnavailable, and the whole
+    chord died with it — discarding a trace whose edges were already durable in Postgres.
+
+    So the failure is recorded as a `partial:` flag (the §8 convention the provider paths already
+    use, which engine.result() turns into `partial: true`) and scripts/rebuild_graph.py repopulates
+    the index afterward."""
+    g = None
+    try:
+        g = Graph()
+        if edges:
+            g.merge_edges(chain, edges)
+        if txs:
+            g.merge_txs(chain, txs)
+        if labels:
+            g.merge_labels(chain, labels, entities or {})
+        return []
+    except (DriverError, Neo4jError) as e:
+        return [f"partial:graph_index_unavailable ({len(edges)} edges, {len(txs)} txs, "
+                f"{len(labels or [])} labels): {type(e).__name__} {str(e)[:100]}"]
+    finally:
+        if g is not None:
+            try:
+                g.close()
+            except (DriverError, Neo4jError):
+                pass
+
+
 def job(trace_id) -> dict:
     with connect() as c:
         r = c.execute("SELECT state, current_hop, progress, result, error FROM trace_jobs WHERE id = %s",
@@ -96,10 +129,7 @@ def expand_task(self, ctx: dict, node: dict) -> dict:
             save_edges(conn, ctx["chain"], r["edges"], ctx["trace_id"], node["hop"])
             save_txs(conn, ctx["chain"], r["txs"])
             if ctx.get("graph"):
-                g = Graph()
-                g.merge_edges(ctx["chain"], r["edges"])
-                g.merge_txs(ctx["chain"], r["txs"])
-                g.close()
+                r["flags"] += _index(ctx["chain"], r["edges"], r["txs"])
         conn.execute("INSERT INTO audit_log (trace_id, input_params, upstream_hash, actor) VALUES (%s,%s,%s,%s)",
                      (ctx["trace_id"], json.dumps({"address": node["addr"], "hop": node["hop"],
                                                    "chain": ctx["chain"], "snapshot": ctx["until"]}),
@@ -165,10 +195,12 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
         if derived:
             save_labels(conn, ctx["trace_id"], ctx["chain"], derived)
         if ctx.get("graph"):
-            g = Graph()
-            g.merge_edges(ctx["chain"], [])
-            g.merge_labels(ctx["chain"], derived, t.reg.entities)
-            g.close()
+            # `out` was built by t.result() above, which already folded flags into `partial` — so a
+            # label-write drop here has to set it directly or the report would under-state itself.
+            lost = _index(ctx["chain"], [], [], derived, t.reg.entities)
+            if lost:
+                out["flags"] += lost
+                out["partial"] = True
     finally:
         conn.close()
     set_state(ctx["trace_id"], "DONE", result=out)
