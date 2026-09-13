@@ -10,6 +10,7 @@ tasks have no ordering, so a per-call number would be fiction; the level boundar
 """
 import hashlib
 import json
+import time
 import uuid
 
 from celery import chord
@@ -184,8 +185,9 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     set_state(ctx["trace_id"], "SCORING", hop=hop, progress=1.0)
     t.prov.calls, t.prov.upstream, t.prov.stale = state["calls"], state["upstream"], state["stale"]
     derived = [l for labs in t.reg.labels.values() for l in labs] + new
+    wall = round(time.time() - state["wall_start"], 2) if state.get("wall_start") else 0
     out = t.result(ctx["wallet"], state["hits"], state["flags"], {n["addr"]: n for n in state["nodes"]},
-                   state["so_edges"], state["evidence"], reason, state.get("wall", 0))
+                   state["so_edges"], state["evidence"], reason, wall)
     out["trace_id"], out["case_id"], out["pins"] = ctx["trace_id"], ctx["case_id"], ctx["pins"]
     with ph.phase("score"):
         out = attribute_result(out)   # §10/§11: ranked VASPs + one crowned target (or an abstention)
@@ -242,8 +244,12 @@ def dispatch_trace(case_id: str, trace_id: str, pins: dict, wallet: str, chain: 
            "offline": offline}
     reg = PgRegistry(pins["label_set_version"])
     start = {"addr": wallet, "hop": 0, "since": 0, "via": None, "utxos": None, "utxo_via": {}}
+    # Elapsed is measured from here, the moment the job is dispatched, because that is the clock the
+    # operator actually experiences — queue wait included. The CLI sets `wall` itself; the chord
+    # driver never did, so every chord-driven trace reported wall_clock_s = 0 and the "time to a
+    # lead" number had nothing behind it. A float survives the JSON hop between tasks unchanged.
     state = {"hop": 1, "nodes": [start], "hits": [], "flags": [], "so_edges": [], "evidence": [],
-             "calls": 0, "upstream": 0, "stale": [], "phases": {}}
+             "calls": 0, "upstream": 0, "stale": [], "phases": {}, "wall_start": time.time()}
     lab = reg.best(chain, wallet)
     if lab:
         state["hits"].append(_hit(start, lab, 0, 0))

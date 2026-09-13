@@ -153,18 +153,46 @@ export function GraphView({ r }: Props) {
   const [hop, setHop] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [sel, setSel] = useState<Record<string, unknown> | null>(null)
+  const [full, setFull] = useState(false)
 
   useEffect(() => {
     setG(null); setErr(null); setHop(0); setPlaying(false); setSel(null)
     traceGraph(r.trace_id).then((d) => { setG(d); setHop(d.max_hop) }).catch((e) => setErr(String(e)))
   }, [r.trace_id])
 
+  /** The full subgraph is the honest payload and stays one click away — but a golden BTC case is
+   *  246 nodes, almost all of them fan-out leaves, and drawing every one produces a flat smear that
+   *  says nothing. The SPINE is what the case actually turns on: the suspect, the path to every
+   *  ranked candidate, the service boundaries, and any labeled endpoint. The leaves are collapsed
+   *  behind a count that names how many — never dropped silently, which would be the dishonest
+   *  version of the same simplification. */
+  const spine = useMemo(() => {
+    const keep = new Set<string>()
+    if (!g) return keep
+    keep.add(g.wallet)
+    for (const cand of r.vasp_candidates ?? []) {
+      for (const h of cand.nearest?.path ?? []) {
+        keep.add(h.from)
+        keep.add(h.to)
+        if (g.chain === 'btc' && h.tx) keep.add(`tx:${h.tx}`)
+      }
+      if (cand.nearest?.endpoint) keep.add(cand.nearest.endpoint)
+    }
+    for (const n of g.nodes) {
+      if (n.boundary || n.crowned || n.is_wallet || (n.role && n.role !== 'unlabeled')) keep.add(n.id)
+    }
+    return keep
+  }, [g, r])
+
   const elements = useMemo<ElementDefinition[]>(() => {
     if (!g) return []
     const swapped = new Set(
       g.nodes.filter((n) => n.role === 'dex').map((n) => n.id),
     )
-    const nodes = g.nodes.map((n) => {
+    const shown = full ? g.nodes : g.nodes.filter((n) => spine.has(n.id))
+    const vis = new Set(shown.map((n) => n.id))
+    const shownEdges = g.edges.filter((e) => vis.has(e.source) && vis.has(e.target))
+    const nodes = shown.map((n) => {
       const role = n.role ?? 'unlabeled'
       const stroke = n.crowned ? COLORS.gold : (ROLE_COLOR[role] ?? COLORS.dim)
       return {
@@ -186,7 +214,7 @@ export function GraphView({ r }: Props) {
         },
       }
     })
-    const edges = g.edges.map((e, i) => ({
+    const edges = shownEdges.map((e, i) => ({
       data: {
         id: `e${i}`,
         source: e.source,
@@ -199,7 +227,7 @@ export function GraphView({ r }: Props) {
       },
     }))
     return [...nodes, ...edges]
-  }, [g])
+  }, [g, full, spine])
 
   useEffect(() => {
     if (!box.current || !elements.length) return
@@ -264,6 +292,9 @@ export function GraphView({ r }: Props) {
               hop {hop} / {g.max_hop}
             </span>
             <button onClick={fit}>fit</button>
+            <button onClick={() => setFull((f) => !f)}>
+              {full ? 'spine only' : `show all ${g.nodes.length}`}
+            </button>
             <span className="tag" style={{ color: COLORS.dim }}>
               {g.chain === 'btc' ? 'UTXO — ▭ tx hypernodes' : 'account — ● address → address'}
             </span>
@@ -321,6 +352,15 @@ export function GraphView({ r }: Props) {
           )}
 
           <div className="note">
+            {full
+              ? `Showing the complete walked subgraph — all ${g.nodes.length} nodes and
+                 ${g.edges.length} edges.`
+              : `Showing the spine: ${Math.min(spine.size, g.nodes.length)} of ${g.nodes.length} nodes —
+                 the suspect, the path to every ranked candidate, each service boundary and every
+                 labeled endpoint. The remaining ${Math.max(0, g.nodes.length - spine.size)} are
+                 fan-out addresses the trace walked but nothing was concluded from; they are
+                 collapsed for legibility, not withheld.`}
+            {' '}
             {g.note}
             {g.truncated && ` Showing ${g.edges.length} of ${g.n_edges_total} edges — the largest
               subgraphs are capped for rendering, not for analysis; the ranking above used all of them.`}
