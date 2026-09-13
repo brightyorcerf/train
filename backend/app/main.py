@@ -12,6 +12,7 @@ and `dispatch` controls whether creation also starts the trace.
 this container, so `reports` records the PDF's content hash instead of a path to a file nobody
 outside the container could fetch.
 """
+import re
 import uuid
 
 from fastapi import FastAPI, HTTPException, Response
@@ -260,6 +261,110 @@ def rescore(trace_id: str, req: RescoreRequest):
             "ranked": ranked, "base_ranked": base_order,
             "rank_unchanged": [c["entity"] for c in alt["vasp_candidates"]] == base_order,
             "note": "what-if only — the case stays pinned to the frozen profile (§11.1)."}
+
+
+# ---------- the graph surface (§13 GraphView) ----------
+# Boundary flags are emitted as "kind:NAME@addr(hop N, tx H)…" by the engine (§9.3) and as
+# "coinjoin_boundary:HASH(...)" / "service_hub_boundary:ADDR(...)". Parsing them here rather than in
+# TypeScript keeps one reading of the format next to the code that writes it.
+_BOUNDARY = re.compile(r"^(mixer|bridge|dex):(?P<name>[^@]+)@(?P<addr>[^(]+)\(hop (?P<hop>\d+)")
+
+
+def _boundaries(flags: list[str]) -> dict[str, dict]:
+    """-> {address: {kind, name, hop, detail}} for the service nodes the trace actually stopped at."""
+    out: dict[str, dict] = {}
+    for f in flags or []:
+        m = _BOUNDARY.match(f)
+        if m:
+            out[m.group("addr").strip()] = {"kind": f.split(":", 1)[0], "name": m.group("name").strip(),
+                                            "hop": int(m.group("hop")), "detail": f}
+    return out
+
+
+@app.get("/trace/{trace_id}/graph")
+def trace_graph(trace_id: str, limit: int = 1200):
+    """The subgraph this trace actually walked, straight from Postgres (§7.6).
+
+    Deliberately NOT Neo4j: the system of record already holds every edge with its hop, and reading
+    it here means the centrepiece visual still renders when the derived index is down or rebuilding
+    — the same property that keeps /convergence alive (proven 2026-09-13 with neo4j stopped).
+
+    BTC keeps its hypernode shape (address -FUNDS-> tx -CREDITS-> address) instead of being
+    flattened to address->address, because the two data models being visibly different IS the
+    claim (§7.1-7.3, §13)."""
+    r = _result(trace_id)
+    chain = r.get("chain") or "btc"
+    bounds = _boundaries(r.get("flags", []))
+    # The ranked result already knows what it crowned and what it calls each endpoint, and it is the
+    # better source than the registry here: a sweep-proven deposit (§6.2c) is labelled in the
+    # TRACE's own overlay, not in the pinned set, so a registry lookup alone returns None for
+    # exactly the node the demo points at — the crowned one.
+    cand: dict[str, dict] = {}
+    for c_ in r.get("vasp_candidates", []):
+        ep = (c_.get("nearest") or {}).get("endpoint")
+        if ep:
+            cand[ep] = {"entity": c_["entity"], "entity_name": c_.get("entity_name"),
+                        "sahyog": c_.get("sahyog"), "score": c_["score"],
+                        "role_basis": (c_.get("nearest") or {}).get("role_basis"),
+                        "crowned": c_["entity"] == r.get("recommended")}
+
+    nodes: dict[str, dict] = {}
+    edges = []
+    with connect() as c:
+        rows = c.execute(
+            "SELECT te.hop, e.chain, e.kind, e.src, e.dst, e.value, e.decimals, e.asset, e.tx_hash "
+            "FROM trace_edge te JOIN edge e ON e.id = te.edge_id WHERE te.trace_id = %s "
+            "ORDER BY te.hop, e.id LIMIT %s", (trace_id, limit)).fetchall()
+        total = c.execute("SELECT count(*) FROM trace_edge WHERE trace_id = %s", (trace_id,)).fetchone()[0]
+        reg = PgRegistry((r.get("pins") or {}).get("label_set_version"), conn=c)
+
+        for hop, ch, kind, src, dst, value, dec, asset, tx in rows:
+            amount = float(value) / 10 ** (dec or 0)
+            if kind in ("funds", "credits"):          # BTC: the tx is a node, not an edge
+                addr, txid = (src, tx) if kind == "funds" else (dst, tx)
+                nodes.setdefault(f"tx:{txid}", {"id": f"tx:{txid}", "kind": "tx", "label": txid[:10],
+                                                "hop": hop, "chain": ch})
+                nodes.setdefault(addr, {"id": addr, "kind": "address", "hop": hop, "chain": ch})
+                a, b = (addr, f"tx:{txid}") if kind == "funds" else (f"tx:{txid}", addr)
+                edges.append({"source": a, "target": b, "kind": kind, "amount": round(amount, 8),
+                              "asset": asset, "tx": txid, "hop": hop})
+            else:
+                for a in (src, dst):
+                    nodes.setdefault(a, {"id": a, "kind": "address", "hop": hop, "chain": ch})
+                edges.append({"source": src, "target": dst, "kind": kind, "amount": round(amount, 8),
+                              "asset": asset, "tx": tx, "hop": hop})
+
+        # PgRegistry resolves the pinned label set lazily against THIS connection, so the node
+        # enrichment has to happen while it is still open.
+        for addr, n in nodes.items():
+            if n["kind"] != "address":
+                continue
+            labs = reg.lookup(chain, addr)
+            best = labs[0] if labs else None
+            ent = reg.entities.get(best.entity) if best else None
+            b = bounds.get(addr)
+            cd = cand.get(addr) or {}
+            # A ranked candidate's endpoint is a deposit-role endpoint by construction (§6.3, §10),
+            # so it keeps that role when the pinned set has no row for it.
+            n |= {"role": (b or {}).get("kind") or (best.role if best else
+                                                    "deposit" if cd else "unlabeled"),
+                  "entity": cd.get("entity") or (best.entity if best else (b or {}).get("name")),
+                  "entity_name": (cd.get("entity_name") or (ent.name if ent else None)
+                                  or (b or {}).get("name")),
+                  "sahyog": cd.get("sahyog") or (ent.sahyog if ent else None),
+                  "role_basis": cd.get("role_basis") or (best.basis if best else None),
+                  "boundary": b["detail"] if b else None,
+                  "is_wallet": addr == r.get("wallet"),
+                  "crowned": bool(cd.get("crowned")),
+                  "score": cd.get("score")}
+
+    return {"trace_id": trace_id, "chain": chain, "wallet": r.get("wallet"),
+            "state": r.get("state"), "partial": r.get("partial", False),
+            "max_hop": max((e["hop"] for e in edges), default=0),
+            "nodes": list(nodes.values()), "edges": edges,
+            "truncated": total > len(rows), "n_edges_total": total,
+            "note": ("Rendered from Postgres, the system of record — not from the Neo4j index. "
+                     "BTC keeps the :Tx hypernode shape; EVM is address -> address.")}
 
 
 # ---------- convergence (§8) ----------

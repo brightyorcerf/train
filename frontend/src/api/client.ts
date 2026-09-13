@@ -192,6 +192,50 @@ export type Convergence = {
   n_shared: number
 }
 
+/** The subgraph the trace actually walked, from Postgres (§7.6) — so the centrepiece renders even
+ *  with Neo4j down or rebuilding. `kind: 'tx'` nodes are the BTC :Tx hypernodes (§7.3); EVM has
+ *  none, which is the visible data-model difference (§13). */
+export type GraphNode = {
+  id: string
+  kind: 'address' | 'tx'
+  hop: number
+  chain: string
+  label?: string
+  role?: string
+  entity?: string | null
+  entity_name?: string | null
+  sahyog?: string | null
+  role_basis?: string | null
+  boundary?: string | null
+  is_wallet?: boolean
+  crowned?: boolean
+  score?: number | null
+}
+
+export type GraphEdge = {
+  source: string
+  target: string
+  kind: string
+  amount: number
+  asset: string
+  tx: string
+  hop: number
+}
+
+export type TraceGraph = {
+  trace_id: string
+  chain: string
+  wallet: string
+  state: string
+  partial: boolean
+  max_hop: number
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  truncated: boolean
+  n_edges_total: number
+  note: string
+}
+
 export type Onboarding = {
   target_vasp: string
   target_vasp_name: string
@@ -235,6 +279,7 @@ export const traceStatus = (id: string) => get<Status>(`/trace/${id}/status`)
 export const traceResult = (id: string) => get<TraceResult>(`/trace/${id}`)
 export const timeline = (id: string) => get<Record<string, unknown>>(`/trace/${id}/timeline`)
 export const provenance = (id: string) => get<Provenance>(`/trace/${id}/provenance`)
+export const traceGraph = (id: string) => get<TraceGraph>(`/trace/${id}/graph`)
 export const onboarding = (entity: string) => get<Onboarding>(`/sahyog/onboarding/${entity}`)
 export const disclosure = (id: string) => post<Disclosure>(`/sahyog/disclosure?trace_id=${id}`, {})
 

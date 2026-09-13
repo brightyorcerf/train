@@ -7,6 +7,7 @@ import { CaseList } from './components/CaseList'
 import { Leaderboard } from './components/Leaderboard'
 import { RecommendedTarget } from './components/RecommendedTarget'
 import { NearestPanel } from './components/NearestPanel'
+import { GraphView } from './components/GraphView'
 import { ScoreBreakdown } from './components/ScoreBreakdown'
 import { ProvenanceCard } from './components/ProvenanceCard'
 import { ConvergencePanel } from './components/ConvergencePanel'
@@ -94,6 +95,7 @@ export default function App() {
       {result && (
         <>
           <Leaderboard r={result} />
+          <GraphView r={result} />
           <NearestPanel r={result} />
           <ScoreBreakdown r={result} />
           <ProvenanceCard r={result} />

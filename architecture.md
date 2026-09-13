@@ -807,3 +807,24 @@ India/SAHYOG reframing, the ceiling is **~9 — but only if the three day-1 gate
 
 Honest current state: **a strong 8.5 once those gates pass and the P0s close; a graph explorer if
 Case A never locks.** The label subsystem (§6) is the difference between those two outcomes.
+
+### Gate status — day 5 is formally unrun, by decision (2026-09-13)
+
+`scripts/day5_graph_check.py` is **deliberately not run**, and this is the record of why rather than
+a loose end.
+
+The gate's purpose is to prove the graph write layer — including the `merge_edges` / `merge_txs`
+batching. It asserts `n_pg == btc_n + evm_n`, which only holds on an empty table, so it opens with
+`TRUNCATE trace_edge, edge, evidence, utxo_tx`. Running it therefore destroys the multi-victim
+convergence data (§8) that the Lazarus set demonstrates, and nothing re-populates those 8 ETH
+subgraphs except spending Etherscan quota to re-trace them.
+
+**The substitute proof is stronger than the gate.** After the day-13 hardening fixes, a full
+`scripts/rebuild_graph.py` pushed **5,200 edges (1,749 BTC + 3,451 ETH) with 0 Neo4j errors**
+through the new 500-row batching — and that 3,451 includes the exact **2,935-edge wallet**
+(`0x098B716B8Aaf…`) whose single oversized write caused the original `Response write failure` and
+killed a chord. The gate would have proven batching on synthetic fixtures; the rebuild proved it on
+the real failure case, at larger volume.
+
+So: batching is verified, the formal gate stays unrun, and re-running it would trade real demo data
+for a re-proof of something already established. Do not run day 5 to make a checklist green.
