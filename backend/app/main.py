@@ -88,6 +88,22 @@ def create_case(req: CaseRequest, response: Response):
             "case_ids": [c["case_id"] for c in cases]}
 
 
+@app.get("/cases")
+def list_cases(limit: int = 50):
+    """Every case with its job state — what CaseList (§13) renders. Newest first."""
+    with connect() as c:
+        rows = c.execute(
+            "SELECT c.id, c.wallet, c.chain, c.source, c.snapshot_block, c.label_set_version, "
+            "c.created_at, j.id, j.state, j.current_hop, j.progress, j.finished_at, "
+            "j.result->>'state', j.result->>'recommended' "
+            "FROM cases c JOIN trace_jobs j ON j.case_id = c.id "
+            "ORDER BY c.created_at DESC LIMIT %s", (limit,)).fetchall()
+    keys = ("case_id", "wallet", "chain", "source", "snapshot_block", "label_set_version",
+            "created_at", "trace_id", "state", "current_hop", "progress", "finished_at",
+            "result_state", "recommended")
+    return {"cases": [dict(zip(keys, r)) for r in rows]}
+
+
 @app.post("/trace", status_code=202)
 def start(req: TraceRequest):
     """§14: execute a case that already exists. Idempotency (§12) — a case whose job already left
