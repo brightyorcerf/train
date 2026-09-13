@@ -53,6 +53,24 @@ def set_state(trace_id, state, hop=None, progress=None, result=None, error=None)
                   (state, hop, progress, json.dumps(result) if result else None, error, state, trace_id))
 
 
+@app.task(queue="trace")
+def trace_failed(request, exc, tb, trace_id: str):
+    """Errback: a dead chord member must land the job in FAILED, not leave it FETCHING forever.
+
+    Celery logs a ChordError and stops there — nothing else writes trace_jobs — so without this the
+    row keeps its last in-flight state and every poller spins indefinitely. Observed 2026-09-13 on
+    trace 44dfa65d: FETCHING, hop 3, finished_at NULL, error NULL, with the real cause visible only
+    in the worker log.
+
+    Guarded on state <> 'DONE' because EVERY header task links here: the first failure records the
+    cause, and a straggler that dies after the callback already finished cannot un-finish a good
+    run. coalesce keeps the first error rather than the last."""
+    with connect() as c:
+        c.execute("UPDATE trace_jobs SET state = 'FAILED', finished_at = now(), "
+                  "error = coalesce(error, %s) WHERE id = %s AND state <> 'DONE'",
+                  (f"{type(exc).__name__}: {str(exc)[:400]}", trace_id))
+
+
 def job(trace_id) -> dict:
     with connect() as c:
         r = c.execute("SELECT state, current_hop, progress, result, error FROM trace_jobs WHERE id = %s",
@@ -158,8 +176,12 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
 
 
 def _dispatch(ctx, frontier, state):
-    return chord([expand_task.s(ctx, n) for n in sorted(frontier, key=lambda n: n["addr"])])(
-        level_done.s(ctx, state)).id
+    """link_error goes on BOTH halves on purpose: a header task dying is what actually happened on
+    2026-09-13, while the callback raises ChordError separately. Either route must reach FAILED."""
+    eb = trace_failed.s(ctx["trace_id"])
+    header = [expand_task.s(ctx, n).set(link_error=eb)
+              for n in sorted(frontier, key=lambda n: n["addr"])]
+    return chord(header)(level_done.s(ctx, state).set(link_error=eb)).id
 
 
 def _tracer(ctx) -> Tracer:

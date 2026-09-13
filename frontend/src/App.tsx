@@ -50,8 +50,15 @@ export default function App() {
     const t0 = performance.now()
     timer.current = window.setInterval(() => setElapsed((performance.now() - t0) / 1000), 100)
     try {
-      await waitAll(ids, () => void refresh())
-      setResult(await traceResult(ids[0]))
+      const final = await waitAll(ids, () => void refresh())
+      // A FAILED job has no result to fetch — asking for one would surface a bare 409 instead of
+      // the reason the worker actually recorded. Say what broke.
+      const dead = Object.entries(final).filter(([, s]) => s.state === 'FAILED')
+      if (dead.length) {
+        setErr(`trace FAILED — ${dead.map(([i, s]) => `${i.slice(0, 8)}: ${s.error ?? 'no cause recorded'}`).join(' · ')}`)
+      } else {
+        setResult(await traceResult(ids[0]))
+      }
     } catch (e) {
       setErr(String(e))
     } finally {

@@ -269,13 +269,31 @@ export async function createCase(body: {
   return r.json() as Promise<{ trace_ids: string[]; case_ids: string[]; snapshot_block: number }>
 }
 
-/** Poll until every trace leaves the running states. onTick sees each poll, for the HUD. */
-export async function waitAll(ids: string[], onTick: (s: Record<string, Status>) => void) {
+/** Poll until every trace leaves the running states. onTick sees each poll, for the HUD.
+ *
+ *  The backend now lands a dead chord in FAILED (its errback), so this loop normally ends on a real
+ *  terminal state. The deadline is the backstop for the case where it does not — a worker killed
+ *  before the errback runs would otherwise leave the console spinning forever, which is the worst
+ *  thing that can happen on stage. Giving up loudly beats a spinner that never resolves. */
+export async function waitAll(
+  ids: string[],
+  onTick: (s: Record<string, Status>) => void,
+  timeoutMs = 600_000,
+) {
+  const t0 = Date.now()
   for (;;) {
     const entries = await Promise.all(ids.map(async (i) => [i, await traceStatus(i)] as const))
     const map = Object.fromEntries(entries)
     onTick(map)
     if (entries.every(([, s]) => s.state === 'DONE' || s.state === 'FAILED')) return map
+    if (Date.now() - t0 > timeoutMs) {
+      const stuck = entries.filter(([, s]) => s.state !== 'DONE' && s.state !== 'FAILED')
+      throw new Error(
+        `gave up after ${Math.round((Date.now() - t0) / 1000)}s — ` +
+        stuck.map(([i, s]) => `${i.slice(0, 8)} still ${s.state} at hop ${s.current_hop}`).join(', ') +
+        '. The job never reached a terminal state; check the worker log.',
+      )
+    }
     await new Promise((r) => setTimeout(r, 1500))
   }
 }
