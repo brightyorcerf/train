@@ -24,8 +24,8 @@ import type { TraceGraph, TraceResult } from '../api/client'
  */
 
 const COLORS = {
-  bg: '#0b0f14', line: '#223040', dim: '#7d93a8', fg: '#d7e3ee',
-  cyan: '#35d0e0', amber: '#e0a23a', red: '#e05260', gold: '#f0c860', green: '#46c08a',
+  bg: '#faf9f6', line: '#d8d3c4', dim: '#8e95a5', fg: '#1a1f2e',
+  cyan: '#2f8fc4', amber: '#e89e3a', red: '#e8665a', gold: '#d9a521', green: '#3fa876',
 }
 
 // Role -> the colour the rest of the console already uses for that role, so the graph is not
@@ -63,7 +63,7 @@ const STYLE: cytoscape.StylesheetJson = [
       shape: 'round-rectangle',
       width: 34,
       height: 16,
-      'background-color': '#172029',
+      'background-color': '#efece2',
       'border-color': COLORS.line,
       color: COLORS.dim,
       'font-size': 8,
@@ -203,7 +203,7 @@ export function GraphView({ r }: Props) {
           hop: n.hop,
           isWallet: !!n.is_wallet,
           crowned: !!n.crowned,
-          fill: n.kind === 'tx' ? '#172029' : 'rgba(23, 32, 41, 0.9)',
+          fill: n.kind === 'tx' ? '#efece2' : 'rgba(255, 255, 255, 0.95)',
           stroke,
           // score is 0-100; keep the glow small so it reads as emphasis, not as a gauge
           glow: n.score ? Math.round(6 + (n.score / 100) * 20) : 0,

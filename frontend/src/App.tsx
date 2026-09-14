@@ -12,6 +12,7 @@ import { ScoreBreakdown } from './components/ScoreBreakdown'
 import { ProvenanceCard } from './components/ProvenanceCard'
 import { ConvergencePanel } from './components/ConvergencePanel'
 import { ReportButton } from './components/ReportButton'
+import { NetworkCanvas } from './components/NetworkCanvas'
 
 export default function App() {
   const [cases, setCases] = useState<CaseRow[]>([])
@@ -20,6 +21,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [elapsed, setElapsed] = useState<number | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [landed, setLanded] = useState(true)
   const timer = useRef<number | null>(null)
 
   const refresh = useCallback(async () => {
@@ -44,6 +46,7 @@ export default function App() {
   }, [])
 
   async function started(ids: string[]) {
+    setLanded(false)
     setBusy(true)
     setErr(null)
     setSel(ids[0])
@@ -70,11 +73,26 @@ export default function App() {
     }
   }
 
+  if (landed) {
+    return (
+      <div className="hero">
+        <NetworkCanvas />
+        <div className="hero-word">train</div>
+        <div className="hero-tag">
+          An automated blockchain tracing engine that instantly connects illicit, unknown crypto
+          wallets to known exchanges
+        </div>
+        <TraceForm onStarted={started} busy={busy} hero />
+      </div>
+    )
+  }
+
   return (
     <div className="app">
-      <h1 style={{ fontSize: 18, marginBottom: 4 }}>
-        VASP Attribution <span className="dim" style={{ fontWeight: 400 }}>· SIH26182</span>
-      </h1>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 22, cursor: 'pointer' }} onClick={() => setLanded(true)}>train</h1>
+        <span className="dim" style={{ fontSize: 12 }}>VASP attribution · SIH26182</span>
+      </div>
       <div className="note" style={{ marginTop: 0, marginBottom: 14 }}>
         Which exchange can identify the account holder behind a suspect wallet — an investigative
         lead, not identity and not evidence.
@@ -82,8 +100,6 @@ export default function App() {
 
       <HUD r={result} elapsed={elapsed} running={busy} />
       {err && <div className="panel err">{err}</div>}
-
-      <TraceForm onStarted={started} busy={busy} />
 
       <div className="cols">
         <CaseList rows={cases} selected={sel} onSelect={select} />
@@ -104,6 +120,12 @@ export default function App() {
       )}
 
       <ConvergencePanel cases={cases} />
+
+      <TraceForm
+        onStarted={started}
+        busy={busy}
+        heading={cases.length > 0 ? 'trace another suspect wallet' : 'trace a suspect wallet'}
+      />
     </div>
   )
 }

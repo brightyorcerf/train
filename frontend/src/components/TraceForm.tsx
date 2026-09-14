@@ -6,8 +6,14 @@ const GOLDEN = {
   'hydra market (UNATTRIBUTED, coinjoin)': '123WBUDmSJv4GctdVEz6Qq6z8nXSKrJ4KX',
 }
 
-/** One or more wallets under ONE snapshot — multi-wallet is what makes §8 convergence reachable. */
-export function TraceForm({ onStarted, busy }: { onStarted: (ids: string[]) => void; busy: boolean }) {
+/** One or more wallets under ONE snapshot — multi-wallet is what makes §8 convergence reachable.
+ *  `hero` swaps the panel chrome for the landing page's pill input + gold CTA, same submit logic. */
+export function TraceForm({ onStarted, busy, hero = false, heading = 'Trace a suspect wallet' }: {
+  onStarted: (ids: string[]) => void
+  busy: boolean
+  hero?: boolean
+  heading?: string
+}) {
   const [text, setText] = useState('')
   const [err, setErr] = useState<string | null>(null)
 
@@ -24,9 +30,42 @@ export function TraceForm({ onStarted, busy }: { onStarted: (ids: string[]) => v
     }
   }
 
+  const [addr] = Object.values(GOLDEN)
+  async function traceGolden() {
+    setErr(null)
+    try {
+      const out = await createCase({ wallets: [addr], chain: 'btc' })
+      onStarted(out.trace_ids)
+    } catch (x) {
+      setErr(String(x))
+    }
+  }
+
+  if (hero) {
+    return (
+      <form onSubmit={submit}>
+        <div className="hero-input">
+          <input
+            placeholder="enter your wallet here"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={busy}
+          />
+          <button aria-label="trace" disabled={busy || wallets.length === 0}>→</button>
+        </div>
+        <div className="row" style={{ justifyContent: 'center', marginTop: 18 }}>
+          <button type="button" className="hero-golden" onClick={traceGolden} disabled={busy}>
+            golden cases →
+          </button>
+        </div>
+        {err && <div className="err" style={{ marginTop: 10, color: '#fff' }}>{err}</div>}
+      </form>
+    )
+  }
+
   return (
     <form className="panel" onSubmit={submit}>
-      <h2>Trace a suspect wallet</h2>
+      <h2>{heading}</h2>
       <div className="row">
         <input
           className="mono"
