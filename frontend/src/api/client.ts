@@ -298,21 +298,15 @@ export const rescore = (id: string, body: {
   profiles?: number
 }) => post<Rescore>(`/trace/${id}/rescore`, body)
 
-export async function createCase(body: {
+export const createCase = (body: {
   wallets: string[]
   chain: string
   snapshot_block?: number | null
   max_hops?: number
   fanout?: number
-}) {
-  const r = await fetch(`${API}/cases`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ fanout: 4, max_hops: 4, ...body }),
-  })
-  if (!r.ok) throw new Error(`${r.status} ${(await r.json().catch(() => ({}))).detail ?? r.statusText}`)
-  return r.json() as Promise<{ trace_ids: string[]; case_ids: string[]; snapshot_block: number }>
-}
+}) => post<{ trace_ids: string[]; case_ids: string[]; snapshot_block: number }>(
+  '/cases', { fanout: 4, max_hops: 4, ...body },
+)
 
 /** Poll until every trace leaves the running states. onTick sees each poll, for the HUD.
  *

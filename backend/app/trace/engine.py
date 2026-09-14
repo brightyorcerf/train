@@ -14,8 +14,8 @@ from app.boundary import bridge
 from app.labels.propagate import SameOwner, propagate, same_owner_edges
 from app.labels.registry import BRIDGE, DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry
 from app.labels.sweep import btc_sweep_proof, evm_sweep_proof
-from app.providers.base import Edge
-from app.providers.esplora import EsploraProvider, ProviderError
+from app.providers.base import Edge, ProviderError
+from app.providers.esplora import EsploraProvider
 from app.providers.etherscan_v2 import EtherscanV2Provider
 
 HARD_MAX_HOPS, MAX_CALLS = 5, 200

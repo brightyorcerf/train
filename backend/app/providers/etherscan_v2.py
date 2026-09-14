@@ -29,7 +29,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.ratelimit import open_limiter
-from app.providers.base import BlockchainProvider, Edge, TxIn, TxOut, TxRecord
+from app.providers.base import IMMUTABLE, BlockchainProvider, Edge, ProviderError, TxIn, TxOut, TxRecord
 from app.providers.store import open_store
 
 ES = "https://api.etherscan.io/v2/api"
@@ -50,13 +50,6 @@ TOKENS = {
                 "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": "WETH",
                 "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": "WPOL"},
 }
-IMMUTABLE = "immutable"
-
-
-class ProviderError(RuntimeError):
-    pass
-
-
 class EtherscanV2Provider(BlockchainProvider):
     def __init__(self, chain: str, store="auto", offline=False, page_cap: int = 5, finality: int = 128,
                  limiter="auto"):

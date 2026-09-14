@@ -20,15 +20,9 @@ import httpx
 
 from app.boundary.change import coinjoin_reason, detect_change
 from app.core.config import settings
-from app.providers.base import BlockchainProvider, Edge, TxIn, TxOut, TxRecord
+from app.providers.base import IMMUTABLE, BlockchainProvider, Edge, ProviderError, TxIn, TxOut, TxRecord
 from app.core.ratelimit import open_limiter
 from app.providers.store import open_store
-
-IMMUTABLE = "immutable"
-
-
-class ProviderError(RuntimeError):
-    pass
 
 
 class EsploraProvider(BlockchainProvider):

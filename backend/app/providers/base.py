@@ -6,6 +6,12 @@ parallelism comes from chord fan-out (§9.2), so async here would only add run()
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
+IMMUTABLE = "immutable"
+
+
+class ProviderError(RuntimeError):
+    pass
+
 
 @dataclass(frozen=True)
 class TxIn:
