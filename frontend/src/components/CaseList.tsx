@@ -4,8 +4,10 @@ const short = (s: string) => `${s.slice(0, 10)}…${s.slice(-6)}`
 
 function stateTag(row: CaseRow) {
   const s = row.result_state ?? row.state
-  const cls = s === 'ATTRIBUTED' ? 'green' : s === 'UNATTRIBUTED' ? 'amber'
-    : s === 'FAILED' ? 'red' : s.startsWith('BROKEN') ? 'red' : 'cyan'
+  const cls = s === 'ATTRIBUTED' ? 'green'
+    : s === 'ATTRIBUTED_INFRA' ? 'cyan'
+    : s === 'UNATTRIBUTED' || s === 'AMBIGUOUS' || s === 'REPORTED_NOT_CROWNED' ? 'amber'
+    : s === 'FAILED' || s === 'INCOMPLETE' || s.startsWith('BROKEN') ? 'red' : 'cyan'
   return <span className={`tag ${cls}`}>{s}</span>
 }
 

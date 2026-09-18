@@ -60,7 +60,9 @@ def path_penalty(flags, cand: dict) -> tuple[float, list[str]]:
     """§9.3 service nodes ON THIS path only — a mixer on some other branch is not this candidate's
     problem. Flags look like 'mixer:Tornado Cash@0xabc…(hop 2, tx 0xdef…)'."""
     from app.scoring.weights import PENALTIES
-    hops = {p["to"] for p in cand.get("path", ())} | {p["from"] for p in cand.get("path", ())}
+    # `on_path` holds ADDRESSES, not hop counts. It was called `hops`, which read as if scoring
+    # touched proximity — the one thing §3 forbids here.
+    on_path = {p["to"] for p in cand.get("path", ())} | {p["from"] for p in cand.get("path", ())}
     txs = {p["tx"] for p in cand.get("path", ())}
     hit, total = [], 0.0
     for f in flags or ():
@@ -69,7 +71,7 @@ def path_penalty(flags, cand: dict) -> tuple[float, list[str]]:
             continue
         addr = f.split("@", 1)[1].split("(", 1)[0].lower() if "@" in f else ""
         tx = f.split("tx ", 1)[1].rstrip(")") if "tx " in f else ""
-        if addr in hops or (tx and tx in txs):
+        if addr in on_path or (tx and tx in txs):
             hit.append(f)
             total += PENALTIES[kind]
     return total, hit

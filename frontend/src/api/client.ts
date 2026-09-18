@@ -1,6 +1,5 @@
 // Typed fetch against the real backend (§14). Field names here are transcribed from live
-// responses, not from the spec — the two differ (e.g. the engine returns `vasp_candidates`,
-// and `wall_clock_s` is 0 for chord-driven traces because only the CLI sets it).
+// responses, not from the spec — the two differ (e.g. the engine returns `vasp_candidates`).
 const API = '/api'
 
 export type Pins = {
@@ -69,8 +68,11 @@ export type TraceResult = {
   chain: string
   state: string
   recommended: string | null
+  /** null when fewer than two candidates were reached: a gap needs two scores (§3). */
   separation: string | null
   separation_pts: number | null
+  /** true when the only candidate scored below the crown floor — listed, not named. */
+  below_floor?: boolean
   rationale?: string
   reason?: string
   hops: number | null
@@ -304,9 +306,18 @@ export const createCase = (body: {
   snapshot_block?: number | null
   max_hops?: number
   fanout?: number
-}) => post<{ trace_ids: string[]; case_ids: string[]; snapshot_block: number }>(
-  '/cases', { fanout: 4, max_hops: 4, ...body },
-)
+  force?: boolean
+}) => post<{
+  trace_ids: string[]
+  case_ids: string[]
+  snapshot_block: number
+  cases: { wallet: string; trace_id: string; reused: boolean; note?: string }[]
+}>('/cases', { fanout: 4, max_hops: 4, ...body })
+
+/** The snapshots the stored/golden data is pinned to. Submitting without a snapshot makes the API
+ *  pin the live chain tip, which lands outside the raw store and forces live provider calls — the
+ *  opposite of the offline demo path (DEMO §1). */
+export const DEMO_SNAPSHOT: Record<string, number> = { btc: 966946, eth: 25906777, polygon: 93439913 }
 
 /** Poll until every trace leaves the running states. onTick sees each poll, for the HUD.
  *

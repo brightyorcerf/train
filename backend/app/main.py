@@ -12,25 +12,39 @@ and `dispatch` controls whether creation also starts the trace.
 this container, so `reports` records the PDF's content hash instead of a path to a file nobody
 outside the container could fetch.
 """
+import math
 import re
 import uuid
+from contextlib import asynccontextmanager
+from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Response
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Query, Response
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api import sahyog as sahyog_mock
 from app.api.report import build_pdf
+from app.api.report import response_hashes as _response_hashes
 from app.api.timeline import summarize
 from app.attribution.convergence import converge
 from app.attribution.engine import attribute_result
-from app.db import connect
-from app.labels.registry import PgRegistry
+from app.db import connect, init_schema
+from app.labels.registry import PgRegistry, valid_address
 from app.scoring.engine import score_candidate
 from app.scoring.weights import WEIGHTS, perturb, weight_hash
-from app.trace.engine import Tracer
-from app.trace.tasks import dispatch_trace, job, open_case, start_trace
+from app.trace.engine import HARD_MAX_HOPS, Tracer
+from app.trace.tasks import dispatch_trace, job, open_case, sweep_stalled
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Create the schema on boot. schema.sql is idempotent (every statement IF NOT EXISTS), and
+    without this a fresh clone answers every endpoint with a 500 about a missing relation."""
+    init_schema()
+    yield
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="VASP Attribution Engine (SIH26182)",
     description="Evidence-weighted attribution of a suspect wallet to the VASP that can identify "
                 "the account holder. Investigative lead, not identity and not evidence (§15).",
@@ -40,21 +54,46 @@ CHAINS = ("btc", "eth", "polygon")
 
 
 class CaseRequest(BaseModel):
+    """Unknown fields are rejected: a typo'd `wallet` (singular, as §14 writes it) silently traced
+    nothing before, because the misspelling was ignored and `wallets` fell back to its default."""
+    model_config = ConfigDict(extra="forbid")
+
     wallets: list[str] = Field(min_length=1, max_length=10)
     chain: str
-    snapshot_block: int | None = None     # None -> pin the current tip (§12: every case pins one)
-    max_hops: int = 4
-    fanout: int = 5
+    snapshot_block: int | None = Field(default=None, ge=0)  # None -> pin the tip (§12: always pinned)
+    max_hops: int = Field(default=4, ge=1, le=HARD_MAX_HOPS)
+    fanout: int = Field(default=5, ge=1, le=50)
     graph: bool = True                    # convergence needs the subgraphs persisted
     dispatch: bool = True                 # False -> §14 shape: create the case, trace later
+    # §10 wants every reachable endpoint ranked. Off by default because the chord driver pays a
+    # per-node setup cost that makes a full walk minutes long on this hardware (see tasks.py).
+    collect_all: bool = False
+    force: bool = False                   # re-run a wallet already traced at this snapshot
+
+    @field_validator("wallets", mode="after")
+    @classmethod
+    def _clean(cls, v: list[str]) -> list[str]:
+        # Copy-paste from a case file arrives with whitespace; storing it verbatim produced a case
+        # whose wallet could never match a label lookup and whose trace was guaranteed empty.
+        return [w.strip() for w in v]
 
 
 class TraceRequest(BaseModel):
-    case_id: str
+    model_config = ConfigDict(extra="forbid")
+    case_id: UUID
+
+
+class DisclosureRequest(BaseModel):
+    """§14 posts the disclosure as a body. The query-parameter form stays accepted so the existing
+    console keeps working."""
+    model_config = ConfigDict(extra="forbid")
+    trace_id: UUID | None = None
+    case_reference: str | None = None
 
 
 class RescoreRequest(BaseModel):
     """A what-if over a STORED trace. Nothing here changes the frozen profile (§11.1)."""
+    model_config = ConfigDict(extra="forbid")
     weights: dict[str, float] | None = None
     perturb_pct: float | None = Field(default=None, gt=0, le=1)
     seed: int = 0
@@ -67,34 +106,20 @@ def _chain(chain: str) -> str:
     return chain
 
 
-def _result(trace_id: str) -> dict:
+def _address(chain: str, address: str) -> str:
+    a = address.strip()
+    if not valid_address(chain, a):
+        raise HTTPException(400, f"{address!r} is not a valid {chain} address")
+    return a
+
+
+def _result(trace_id) -> dict:
     j = job(trace_id)
     if not j:
         raise HTTPException(404, "unknown trace")
     if j["state"] != "DONE":
         raise HTTPException(409, f"trace is {j['state']}")
     return j["result"]
-
-
-def _response_hashes(r: dict, limit: int = 12) -> list[dict]:
-    """The §13 'response hash' rows: the cached provider bytes this trace was computed from.
-
-    Keyed by the trace's own pinned snapshot, so a trace served from an earlier snapshot's rows
-    legitimately returns none — the surface says that rather than widening the query until
-    something matches."""
-    block = (r.get("pins") or {}).get("snapshot_block")
-    addrs = [r.get("wallet")] + [(c.get("nearest") or {}).get("endpoint")
-                                 for c in r.get("vasp_candidates", [])]
-    addrs = [a for a in addrs if a]
-    if block is None or not addrs:
-        return []
-    with connect() as c:
-        rows = c.execute(
-            "SELECT request_key, request, content_hash, provider, fetched_at FROM raw_response "
-            "WHERE scope = %s AND request ILIKE ANY(%s) ORDER BY fetched_at LIMIT %s",
-            (f"snapshot:{block}", [f"%{a}%" for a in addrs], limit)).fetchall()
-    keys = ("request_key", "request", "content_hash", "provider", "fetched_at")
-    return [dict(zip(keys, x)) for x in rows]
 
 
 @app.get("/health")
@@ -105,18 +130,37 @@ def health():
 # ---------- cases & traces (§14) ----------
 @app.post("/cases", status_code=202)
 def create_case(req: CaseRequest, response: Response):
-    """N wallets -> N cases under ONE snapshot. 202 when dispatched, 201 when only created."""
+    """N wallets -> N cases under ONE snapshot. 202 when dispatched, 201 when only created.
+
+    Idempotent on (wallet, chain, snapshot_block) (§12): re-posting a wallet already traced at this
+    snapshot returns the existing case instead of a second one. Repeating the same request produced
+    a new case and a fresh provider spend every time, which is how one demo wallet ended up with 32
+    duplicate traces. `force: true` re-runs deliberately."""
     _chain(req.chain)
+    wallets = [_address(req.chain, w) for w in req.wallets]
     snapshot = req.snapshot_block or Tracer(req.chain, 10**9).until
     params = {"max_hops": req.max_hops, "fanout": req.fanout}
     cases = []
-    for w in req.wallets:
+    for w in wallets:
+        if not req.force:
+            with connect() as c:
+                row = c.execute(
+                    "SELECT c.id::text, j.id::text, j.pins, j.state FROM cases c "
+                    "JOIN trace_jobs j ON j.case_id = c.id WHERE c.wallet = %s AND c.chain = %s "
+                    "AND c.snapshot_block = %s AND j.state <> 'FAILED' "
+                    "ORDER BY c.created_at DESC LIMIT 1", (w, req.chain, snapshot)).fetchone()
+            if row:
+                cases.append({"wallet": w, "case_id": row[0], "trace_id": row[1], "pins": row[2],
+                              "state": row[3], "reused": True,
+                              "note": "existing case at this snapshot — not re-traced "
+                                      "(§12 idempotency; pass force=true to re-run)"})
+                continue
         case_id, trace_id, pins = open_case(w, req.chain, snapshot, None, "api", params)
         if req.dispatch:
             dispatch_trace(case_id, trace_id, pins, w, req.chain, snapshot, req.max_hops,
-                           req.fanout, graph=req.graph)
+                           req.fanout, graph=req.graph, collect_all=req.collect_all)
         cases.append({"wallet": w, "case_id": case_id, "trace_id": trace_id, "pins": pins,
-                      "state": "FETCHING" if req.dispatch else "QUEUED"})
+                      "reused": False, "state": "FETCHING" if req.dispatch else "QUEUED"})
     if not req.dispatch:
         response.status_code = 201
     return {"snapshot_block": snapshot, "chain": req.chain, "cases": cases,
@@ -125,19 +169,25 @@ def create_case(req: CaseRequest, response: Response):
 
 
 @app.get("/cases")
-def list_cases(limit: int = 50):
-    """Every case with its job state — what CaseList (§13) renders. Newest first."""
-    with connect() as c:
-        rows = c.execute(
-            "SELECT c.id, c.wallet, c.chain, c.source, c.snapshot_block, c.label_set_version, "
+def list_cases(limit: int = Query(50, ge=1, le=500), all_runs: bool = False):
+    """Every case with its job state — what CaseList (§13) renders. Newest first.
+
+    One row per (wallet, chain, snapshot) by default: repeated runs of the same wallet at the same
+    pin are the same investigation, and showing all of them buried the demo set under duplicates.
+    `all_runs=true` returns the full history."""
+    cols = ("c.id, c.wallet, c.chain, c.source, c.snapshot_block, c.label_set_version, "
             "c.created_at, j.id, j.state, j.current_hop, j.progress, j.finished_at, "
-            "j.result->>'state', j.result->>'recommended' "
-            "FROM cases c JOIN trace_jobs j ON j.case_id = c.id "
-            "ORDER BY c.created_at DESC LIMIT %s", (limit,)).fetchall()
+            "j.result->>'state', j.result->>'recommended'")
+    inner = (f"SELECT {cols} FROM cases c JOIN trace_jobs j ON j.case_id = c.id" if all_runs else
+             f"SELECT DISTINCT ON (c.wallet, c.chain, c.snapshot_block) {cols} "
+             "FROM cases c JOIN trace_jobs j ON j.case_id = c.id "
+             "ORDER BY c.wallet, c.chain, c.snapshot_block, c.created_at DESC")
+    with connect() as c:
+        rows = c.execute(f"SELECT * FROM ({inner}) t ORDER BY 7 DESC LIMIT %s", (limit,)).fetchall()
     keys = ("case_id", "wallet", "chain", "source", "snapshot_block", "label_set_version",
             "created_at", "trace_id", "state", "current_hop", "progress", "finished_at",
             "result_state", "recommended")
-    return {"cases": [dict(zip(keys, r)) for r in rows]}
+    return {"cases": [dict(zip(keys, r, strict=True)) for r in rows]}
 
 
 @app.post("/trace", status_code=202)
@@ -147,44 +197,48 @@ def start(req: TraceRequest):
     with connect() as c:
         row = c.execute(
             "SELECT c.wallet, c.chain, c.snapshot_block, c.params, j.id, j.state, j.pins "
-            "FROM cases c JOIN trace_jobs j ON j.case_id = c.id WHERE c.id = %s", (req.case_id,)
+            "FROM cases c JOIN trace_jobs j ON j.case_id = c.id WHERE c.id = %s", (str(req.case_id),)
         ).fetchone()
     if not row:
         raise HTTPException(404, "unknown case")
     wallet, chain, snapshot, params, trace_id, state, pins = row
     if state != "QUEUED":
-        return {"case_id": req.case_id, "trace_id": str(trace_id), "state": state,
+        return {"case_id": str(req.case_id), "trace_id": str(trace_id), "state": state,
                 "note": "already dispatched — not re-run (§12 idempotency)"}
     params = params or {}
-    return dispatch_trace(req.case_id, str(trace_id), pins, wallet, chain, snapshot,
+    return dispatch_trace(str(req.case_id), str(trace_id), pins, wallet, chain, snapshot,
                           params.get("max_hops", 4), params.get("fanout", 5), graph=True)
 
 
 @app.get("/trace/{trace_id}/status")
-def trace_status(trace_id: str):
+def trace_status(trace_id: UUID):
     j = job(trace_id)
     if not j:
         raise HTTPException(404, "unknown trace")
+    if j["state"] in ("QUEUED", "FETCHING", "SCORING"):
+        # A poller asking about a job that died with its worker deserves an answer, not a spinner.
+        if sweep_stalled(trace_id):
+            j = job(trace_id)
     return {k: j[k] for k in ("state", "current_hop", "progress", "error")}
 
 
 @app.get("/trace/{trace_id}")
-def trace_result(trace_id: str):
+def trace_result(trace_id: UUID):
     return _result(trace_id)
 
 
 @app.get("/trace/{trace_id}/timeline")
-def trace_timeline(trace_id: str):
+def trace_timeline(trace_id: UUID):
     """Per-phase timing (§16). `normalize` is null by design: it is not separable from `fetch`
     inside expand_node, and an invented split would be fiction."""
     return summarize(_result(trace_id))
 
 
 @app.get("/trace/{trace_id}/provenance")
-def trace_provenance(trace_id: str):
+def trace_provenance(trace_id: UUID):
     """The §13 ProvenanceCard rows — source, tier, role basis and deposit event per candidate."""
     r = _result(trace_id)
-    return {"trace_id": trace_id, "wallet": r.get("wallet"), "pins": r.get("pins", {}),
+    return {"trace_id": str(trace_id), "wallet": r.get("wallet"), "pins": r.get("pins", {}),
             "provenance": sahyog_mock.provenance(r),
             "sweep_evidence": r.get("sweep_evidence", []), "flags": r.get("flags", []),
             "response_hashes": _response_hashes(r)}
@@ -196,6 +250,7 @@ def wallet_score(address: str, chain: str = "btc"):
     """Score a single ADDRESS from its pinned label, with no trace. This is the label's own
     evidence, not an attribution: there is no path, so proximity (§3 Axis 1) does not exist here."""
     _chain(chain)
+    address = _address(chain, address)
     reg = PgRegistry()
     lab = reg.best(chain, address)
     if not lab:
@@ -215,7 +270,7 @@ def wallet_score(address: str, chain: str = "btc"):
 
 
 @app.post("/trace/{trace_id}/rescore")
-def rescore(trace_id: str, req: RescoreRequest):
+def rescore(trace_id: UUID, req: RescoreRequest):
     """Re-rank a FINISHED trace under a different weight profile — the §11.2 perturbation answer,
     live (Q&A #3).
 
@@ -227,6 +282,8 @@ def rescore(trace_id: str, req: RescoreRequest):
     and `frozen_weight_hash` is what the case is actually pinned to — a report always names the
     profile that produced it (§12)."""
     r = _result(trace_id)
+    if req.weights and not all(math.isfinite(v) for v in req.weights.values()):
+        raise HTTPException(400, "weights must be finite numbers")   # NaN/inf reached the JSON encoder
     base_order = [c["entity"] for c in r.get("vasp_candidates", [])]
     base_rec = r.get("recommended")
 
@@ -234,7 +291,7 @@ def rescore(trace_id: str, req: RescoreRequest):
         pct = req.perturb_pct or 0.2
         same = sum(attribute_result(r, weights=perturb(pct, seed=s))["recommended"] == base_rec
                    for s in range(req.profiles))
-        return {"trace_id": trace_id, "base_recommended": base_rec,
+        return {"trace_id": str(trace_id), "base_recommended": base_rec,
                 "ranked": [{"entity": c["entity"], "entity_name": c.get("entity_name"),
                             "score": c["score"]} for c in r.get("vasp_candidates", [])],
                 "recommended": base_rec, "rank_unchanged": same == req.profiles,
@@ -249,12 +306,16 @@ def rescore(trace_id: str, req: RescoreRequest):
     if any(v < 0 for v in w.values()) or sum(w.values()) <= 0:
         raise HTTPException(400, "weights must be non-negative and sum above zero")
     total = sum(w.values())
+    if not math.isfinite(total):
+        # 1e308 each summed to inf, every weight normalized to 0.0, and the response came back 200
+        # with a meaningless all-zero profile instead of rejecting the input.
+        raise HTTPException(400, "weights overflow: their sum is not a finite number")
     w = {k: v / total for k, v in w.items()}      # renormalized, exactly as perturb() does
 
     alt = attribute_result(r, weights=w)
     ranked = [{"entity": c["entity"], "entity_name": c.get("entity_name"), "score": c["score"]}
               for c in alt["vasp_candidates"]]
-    return {"trace_id": trace_id, "weights": w, "weight_hash": weight_hash(w),
+    return {"trace_id": str(trace_id), "weights": w, "weight_hash": weight_hash(w),
             "frozen_weights": dict(WEIGHTS), "frozen_weight_hash": weight_hash(),
             "recommended": alt["recommended"], "base_recommended": base_rec,
             "separation": alt["separation"], "separation_pts": alt["separation_pts"],
@@ -282,7 +343,7 @@ def _boundaries(flags: list[str]) -> dict[str, dict]:
 
 
 @app.get("/trace/{trace_id}/graph")
-def trace_graph(trace_id: str, limit: int = 1200):
+def trace_graph(trace_id: UUID, limit: int = Query(1200, ge=1, le=20000)):
     """The subgraph this trace actually walked, straight from Postgres (§7.6).
 
     Deliberately NOT Neo4j: the system of record already holds every edge with its hop, and reading
@@ -314,8 +375,9 @@ def trace_graph(trace_id: str, limit: int = 1200):
         rows = c.execute(
             "SELECT te.hop, e.chain, e.kind, e.src, e.dst, e.value, e.decimals, e.asset, e.tx_hash "
             "FROM trace_edge te JOIN edge e ON e.id = te.edge_id WHERE te.trace_id = %s "
-            "ORDER BY te.hop, e.id LIMIT %s", (trace_id, limit)).fetchall()
-        total = c.execute("SELECT count(*) FROM trace_edge WHERE trace_id = %s", (trace_id,)).fetchone()[0]
+            "ORDER BY te.hop, e.id LIMIT %s", (str(trace_id), limit)).fetchall()
+        total = c.execute("SELECT count(*) FROM trace_edge WHERE trace_id = %s",
+                          (str(trace_id),)).fetchone()[0]
         reg = PgRegistry((r.get("pins") or {}).get("label_set_version"), conn=c)
 
         for hop, ch, kind, src, dst, value, dec, asset, tx in rows:
@@ -358,7 +420,7 @@ def trace_graph(trace_id: str, limit: int = 1200):
                   "crowned": bool(cd.get("crowned")),
                   "score": cd.get("score")}
 
-    return {"trace_id": trace_id, "chain": chain, "wallet": r.get("wallet"),
+    return {"trace_id": str(trace_id), "chain": chain, "wallet": r.get("wallet"),
             "state": r.get("state"), "partial": r.get("partial", False),
             "max_hop": max((e["hop"] for e in edges), default=0),
             "nodes": list(nodes.values()), "edges": edges,
@@ -369,12 +431,18 @@ def trace_graph(trace_id: str, limit: int = 1200):
 
 # ---------- convergence (§8) ----------
 @app.get("/convergence")
-def convergence(trace_ids: str, chain: str = "btc", min_shared: int = 2):
+def convergence(trace_ids: str, chain: str = "btc", min_shared: int = Query(2, ge=1, le=100)):
     """Nodes appearing in >= min_shared of these traces' subgraphs — where separate complaints
     turn out to be one campaign."""
+    _chain(chain)
     ids = [t.strip() for t in trace_ids.split(",") if t.strip()]
     if len(ids) < 2:
         raise HTTPException(400, "convergence needs at least two trace_ids")
+    for t in ids:                       # non-uuid text used to reach Postgres and 500 there
+        try:
+            uuid.UUID(t)
+        except ValueError:
+            raise HTTPException(422, f"{t!r} is not a trace_id") from None
     with connect() as c:
         wallets = [r[0] for r in c.execute(
             "SELECT cs.wallet FROM trace_jobs j JOIN cases cs ON cs.id = j.case_id WHERE j.id = ANY(%s)",
@@ -399,19 +467,24 @@ def sahyog_onboarding(entity_id: str):
 
 
 @app.post("/sahyog/disclosure")
-def sahyog_disclosure(trace_id: str, case_reference: str | None = None):
+def sahyog_disclosure(trace_id: UUID | None = None, case_reference: str | None = None,
+                      body: DisclosureRequest | None = None):
     """The §17 disclosure payload for a finished trace. If the engine abstained, no target is
     named. If the crowned VASP is not SAHYOG-onboarded, `routable_via_sahyog` is false and the
     payload says to use MLAT / direct legal process instead."""
-    payload = sahyog_mock.disclosure_payload(_result(trace_id), case_reference)
-    return {"request_id": f"MOCK-{trace_id[:8]}", "accepted": False,
+    tid = (body.trace_id if body and body.trace_id else trace_id)
+    ref = (body.case_reference if body and body.case_reference else case_reference)
+    if tid is None:
+        raise HTTPException(422, "trace_id is required (body {\"trace_id\": ...} or ?trace_id=)")
+    payload = sahyog_mock.disclosure_payload(_result(tid), ref)
+    return {"request_id": f"MOCK-{str(tid)[:8]}", "accepted": False,
             "note": "MOCK endpoint — nothing was transmitted to SAHYOG or any VASP.",
             "disclosure_payload": payload}
 
 
 # ---------- report (§13) ----------
 @app.get("/report/{trace_id}")
-def report(trace_id: str):
+def report(trace_id: UUID):
     """The artifact an investigator files: the four determinism pins on the face, the ranked
     candidates, the provenance, and BOTH routing branches (§17).
 
@@ -421,11 +494,14 @@ def report(trace_id: str):
     pdf, digest = build_pdf(r, _response_hashes(r))
     pins = r.get("pins", {})
     if r.get("case_id"):
+        # One row per (case, content hash): viewing a report is not filing a new one, and the old
+        # unconditional INSERT grew `reports` on every refresh.
         with connect() as c:
             c.execute("INSERT INTO reports (id, case_id, pdf_path, content_hash, adapter_version, "
-                      "weight_hash) VALUES (%s, %s, NULL, %s, %s, %s)",
+                      "weight_hash) VALUES (%s, %s, NULL, %s, %s, %s) "
+                      "ON CONFLICT (case_id, content_hash) DO NOTHING",
                       (str(uuid.uuid4()), r["case_id"], digest,
                        pins.get("adapter_version"), pins.get("weight_hash")))
     return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="vasp-attribution-{trace_id[:8]}.pdf"',
+        "Content-Disposition": f'inline; filename="vasp-attribution-{str(trace_id)[:8]}.pdf"',
         "X-Content-Hash": digest})

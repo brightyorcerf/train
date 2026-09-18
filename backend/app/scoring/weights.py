@@ -16,6 +16,11 @@ WEIGHTS = {"deposit_basis": 0.40, "source_tier": 0.35, "temporal": 0.15, "dust_f
 PENALTIES = {"mixer": 0.30, "bridge": 0.20, "dex": 0.15}   # each applied once, per §11.1
 FROZEN_AT = "2026-09-12"        # frozen BEFORE the first golden-set run (§11.2)
 SEPARATION_TAU = 10             # top1 - top2 below this (of 100) -> ambiguous, don't crown (§10)
+# Below this index nothing is crowned even when it is the only candidate reached: a lone weak
+# endpoint (an unlabeled-tier hot wallet on a dusty, time-scattered path) is worth REPORTING, not
+# worth naming as the VASP to serve. Without a floor the engine crowns whatever it found, which is
+# the "it always answers" failure the abstention design exists to avoid (§6.3, §10).
+MIN_CROWN = 50
 
 
 def weight_hash(weights: dict | None = None, penalties: dict | None = None) -> str:

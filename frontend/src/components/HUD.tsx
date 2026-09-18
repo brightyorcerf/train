@@ -1,8 +1,8 @@
 import type { TraceResult } from '../api/client'
 
-/** Persistent cost/effort strip (§13). `wall_clock_s` is 0 on chord-driven traces — only the CLI
- *  sets it — so elapsed is the client's own timer for runs started in this session, and is left
- *  blank rather than faked for traces loaded from cache. */
+/** Persistent cost/effort strip (§13). `elapsed` is the client's own timer for runs started in
+ *  this session, left blank rather than faked for traces loaded from cache; the backend's own
+ *  `wall_clock_s` covers the worker side. */
 export function HUD({ r, elapsed, running }: { r: TraceResult | null; elapsed: number | null; running: boolean }) {
   const phaseTotal = r ? Object.values(r.phases ?? {}).reduce((a, b) => a + b, 0) : null
   return (

@@ -17,7 +17,38 @@ import hashlib
 import html as _html
 
 from app.api import sahyog as sahyog_mock
+from app.db import connect
 from app.labels.registry import PgRegistry
+
+
+def _like(s: str) -> str:
+    """Escape LIKE wildcards: an address is matched literally, never as a pattern."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def response_hashes(r: dict, limit: int = 12) -> list[dict]:
+    """The §13 'response hash' rows: the cached provider bytes this trace was computed from.
+
+    Lives here, next to the renderer, because the report's content hash covers these rows: the
+    verifier has to reproduce the SAME html, and calling build_pdf() without them renders a
+    different page that can never match what was filed.
+
+    Keyed by the trace's own pinned snapshot, so a trace served from an earlier snapshot's rows
+    legitimately returns none — the surface says that rather than widening the query until
+    something matches."""
+    block = (r.get("pins") or {}).get("snapshot_block")
+    addrs = [r.get("wallet")] + [(c.get("nearest") or {}).get("endpoint")
+                                 for c in r.get("vasp_candidates", [])]
+    addrs = [a for a in addrs if a]
+    if block is None or not addrs:
+        return []
+    with connect() as c:
+        rows = c.execute(
+            "SELECT request_key, request, content_hash, provider, fetched_at FROM raw_response "
+            "WHERE scope = %s AND request ILIKE ANY(%s) ORDER BY fetched_at LIMIT %s",
+            (f"snapshot:{block}", [f"%{_like(a)}%" for a in addrs], limit)).fetchall()
+    keys = ("request_key", "request", "content_hash", "provider", "fetched_at")
+    return [dict(zip(keys, x, strict=True)) for x in rows]
 
 CSS = """
 @page { size: A4; margin: 16mm 14mm; }
@@ -66,6 +97,16 @@ def _routes(recommended: str | None, reg: PgRegistry) -> list[dict]:
     return out
 
 
+def _separation_line(result: dict) -> str:
+    """Separation is a gap between TWO candidates. With one it does not exist, and printing the
+    sole score as "N pts between top two" claimed a comparison that was never made."""
+    pts, n = result.get("separation_pts"), len(result.get("vasp_candidates") or [])
+    if n < 2 or pts is None:
+        return ("Only one candidate endpoint was reached, so there is no separation to report "
+                "(separation applies to the gap between the top two).") if n else ""
+    return f"Separation {_html.escape(str(result.get('separation')))} ({pts} pts between top two)."
+
+
 def _rows(headers, rows) -> str:
     head = "".join(f"<th>{_html.escape(h)}</th>" for h in headers)
     body = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
@@ -73,7 +114,10 @@ def _rows(headers, rows) -> str:
 
 
 def build_html(result: dict, hashes: list[dict] | None = None, reg: PgRegistry | None = None) -> str:
-    reg = reg or PgRegistry()
+    # The PINNED label set, not the newest one (§12). Rendering against "latest" meant a report for
+    # an old case silently picked up entity names, jurisdictions and SAHYOG status from a label set
+    # the case was never scored under — the exact non-determinism the pins exist to prevent.
+    reg = reg or PgRegistry((result.get("pins") or {}).get("label_set_version"))
     e = _html.escape
     pins = result.get("pins", {})
     rec = result.get("recommended")
@@ -166,9 +210,8 @@ legal chain of custody; production custody is named as future work.</div>
 
 <h2>Ranked candidates</h2>
 {lead}
-<div class="note">Separation {e(str(result.get("separation")))} ({result.get("separation_pts")} pts
-between top two). Confidence is an INDEX out of 100 — not a probability, not a percentage, and not
-a claim of ownership.</div>
+<div class="note">{_separation_line(result)} Confidence is an INDEX out of 100 — not a probability,
+not a percentage, and not a claim of ownership.</div>
 
 <h2>Nearest endpoint — proximity, a separate claim (§3)</h2>
 <div class="note">hops {near.get("hops")} · role basis {e(str(near.get("role_basis") or "not recorded"))}
@@ -199,8 +242,14 @@ to any VASP.</div>
 
 
 def build_pdf(result: dict, hashes: list[dict] | None = None) -> tuple[bytes, str]:
-    """-> (pdf bytes, content hash). Imported lazily: WeasyPrint pulls in cairo/pango and there is
-    no reason to pay that at API startup for an endpoint most requests never touch."""
+    """-> (pdf bytes, content hash of the rendered HTML). Imported lazily: WeasyPrint pulls in
+    cairo/pango and there is no reason to pay that at API startup for an endpoint most requests
+    never touch.
+
+    The hash is taken over the HTML, not the PDF bytes: WeasyPrint stamps a creation timestamp into
+    every PDF, so two renders of one trace produced two different digests and §12's
+    reproduce-and-verify could never succeed. The HTML is a pure function of (stored result, pinned
+    label set), which is exactly the thing a verifier wants to compare."""
     from weasyprint import HTML
-    pdf = HTML(string=build_html(result, hashes)).write_pdf()
-    return pdf, hashlib.sha256(pdf).hexdigest()
+    html_doc = build_html(result, hashes)
+    return HTML(string=html_doc).write_pdf(), hashlib.sha256(html_doc.encode()).hexdigest()

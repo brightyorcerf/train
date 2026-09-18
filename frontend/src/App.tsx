@@ -79,8 +79,8 @@ export default function App() {
         <NetworkCanvas />
         <div className="hero-word">train</div>
         <div className="hero-tag">
-          An automated blockchain tracing engine that instantly connects illicit, unknown crypto
-          wallets to known exchanges
+          Traces an unknown wallet to the deposit-accepting exchanges it can be linked to — ranked
+          on evidence, with an auditable reason, and abstaining when the evidence is not there
         </div>
         <TraceForm onStarted={started} busy={busy} hero />
       </div>

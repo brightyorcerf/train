@@ -363,10 +363,13 @@ All graph writes use `MERGE`, never `CREATE` (§12).
 ```python
 class BlockchainProvider(ABC):
     chain: str
-    async def get_outgoing(self, address, until_block) -> list[Edge]: ...  # EVM: native+internal+erc20
-    async def get_tx(self, tx_hash) -> TxRecord: ...                       # UTXO: full inputs/outputs
-    async def get_neighbors(self, address, until_block) -> list[str]: ...
+    def get_outgoing(self, address, until_block, since_block=0) -> list[Edge]: ...  # EVM: native+internal+erc20
+    def get_tx(self, tx_hash) -> TxRecord: ...                                      # UTXO: full inputs/outputs
+    def get_neighbors(self, address, until_block, since_block=0) -> list[str]: ...
 ```
+
+**Sync, not async** (as built): workers are Celery (sync) and parallelism comes from chord fan-out
+(§9.2), so `async` here would add `run()`/`to_thread` glue and no concurrency.
 
 | Chain | Provider | Free reality | Notes |
 |---|---|---|---|
@@ -428,6 +431,17 @@ deterministic and retry-safe.
 | `BROKEN_AT_DEX` | hit a known DEX router/pool | "asset swapped via <DEX>; 1:1 value linkage broken" — see policy below |
 | `UNATTRIBUTED` | budget exhausted, no label | "reached N hops, no known VASP; here is how far we got" |
 | `ERROR` | upstream/data failure | logged, surfaced honestly |
+
+As built, the attribution layer emits four more states, and they are load-bearing:
+
+| State | Meaning |
+|---|---|
+| `ATTRIBUTED_INFRA` | the endpoint is a VASP's hot/infra wallet, not a customer deposit address — §6.3's downgrade, kept at the top level instead of being flattened into `ATTRIBUTED` |
+| `AMBIGUOUS` | `top1 − top2 < τ` — comparable candidates, none crowned |
+| `REPORTED_NOT_CROWNED` | one candidate, scoring below `MIN_CROWN` — listed with its evidence, not named as a disclosure target |
+| `INCOMPLETE` | a provider failure or an offline store miss left part of the graph unfetched. **Not** an abstention: absence of data is not absence of evidence, and the two must not render the same |
+
+`ERROR` is not used: a failed job carries its cause in `trace_jobs.error` and reports `FAILED`.
 
 **Service-node policy** (know the difference — judges reward it):
 
@@ -495,13 +509,18 @@ def score(v) -> tuple[int, dict]:
     f = {
       "source_tier":     source_weight(v.best_label),          # ofac>curated>tagpacks>heuristic ∈[0,1]
       "deposit_basis":   deposit_basis(v.endpoint),            # labeled=1.0, sweep-proven=0.7, none=0.3
-      "value_relevance": min(1.0, log10(v.total_usd)/6),       # dust≈0, ≥$1M≈1  (log-normalized)
+      "dust_floor":      min(1.0, v.value / floor(v.asset)),   # dust penalised; size never rewards
       "temporal":        time_coherence(v.paths),              # ∈[0,1], tight window → high
     }
     penalty = mixer_penalty(v) + bridge_penalty(v) + dex_penalty(v)   # each ∈[0,~0.3]
     idx = round(100 * clamp01(sum(W[k]*f[k] for k in f) - penalty))
     return idx, f          # breakdown returned verbatim to the UI
 ```
+
+`value_relevance` was specified as `log10(total_usd)/6` and is built as `dust_floor`: there is no
+price feed in scope, so the floor is per-asset in native units, and — more importantly — a large
+transfer is *not* evidence that a label is right. It can only penalise trailing dust, never reward
+size. Value as priority is a separate axis, not confidence.
 
 Discipline: every factor ∈ [0,1] and explainable in one sentence; cap ~5 factors (more knobs
 with no ground truth = overfitting theater); **weights `W` are hand-set expert priors, FROZEN
@@ -520,6 +539,12 @@ operational data exists* — the concrete future-work item.
   accuracy," never a probability. n=15 → wide CIs; say so.
 - **The defensible metric is rank stability under ±20% weight perturbation** — do the rankings
   survive? That, not the raw count, answers "is this calibrated?"
+  **It only means something on a case that reached two or more candidates.** With 0 or 1 candidates
+  the top-1 cannot change under any weights, so "stable in N of N profiles" is arithmetic, not
+  evidence. The harness prints the contested denominator (currently 0 of 8) and says so in its own
+  output. A case with genuinely competing candidates is required before the number can be cited.
+- A case whose trace comes back `INCOMPLETE` is **not scored**: a confuser that abstains because
+  the data never arrived has demonstrated nothing.
 - **Offline fixture mode** (`eval run --offline`, from stored raw responses) = the reproducibility
   demo. **Per-case telemetry** (API calls, wall-clock, cost) = the direct evidence for the PS's
   "reduce investigation time" goal.
@@ -579,26 +604,44 @@ Budget real time on GraphView (days 11); it dies *after* leaderboard/evidence ca
 ## 14. API SURFACE (FastAPI)
 
 ```
-POST /cases                {wallet, chain}     → {case_id}                      201
-POST /trace                {case_id}           → {trace_id}                     202 (async)
-GET  /trace/{id}/status                         → {state, current_hop, progress}
-GET  /trace/{id}                                → TraceResult
+GET  /health                                    → {status}
+POST /cases      {wallets[≤10], chain, snapshot_block?, max_hops, fanout,
+                  graph, dispatch, collect_all, force}
+                                                → {snapshot_block, chain, cases[], trace_ids[],
+                                                   case_ids[]}                  202 dispatched
+                                                                                201 created only
+GET  /cases                ?limit&all_runs      → one row per (wallet, chain, snapshot) by default
+POST /trace                {case_id}            → {trace_id}                    202 (async)
+GET  /trace/{id}/status                         → {state, current_hop, progress, error}
+GET  /trace/{id}                                → TraceResult   (409 until DONE)
 GET  /trace/{id}/timeline                       → per-phase timing (§16)
+GET  /trace/{id}/provenance                     → ProvenanceCard rows + response hashes (§13)
+GET  /trace/{id}/graph     ?limit               → the walked subgraph, from Postgres (§7.6)
+POST /trace/{id}/rescore   {weights|perturb_pct|profiles}  → what-if ranking (§11.2)
+GET  /convergence          ?trace_ids&chain&min_shared     → shared nodes across traces (§8)
 GET  /wallets/{addr}/score ?chain=              → {score, breakdown}
-GET  /report/{id}                               → application/pdf
-POST /sahyog/cases         {wallet, chain}      → {case_id}        # MOCK, OpenAPI-documented
-POST /sahyog/disclosure    {disclosure_payload} → {request_id}     # MOCK — the §17 payload
+GET  /report/{id}                               → application/pdf + X-Content-Hash
+POST /sahyog/cases         (CaseRequest)        → as /cases, source tagged  # MOCK
+GET  /sahyog/onboarding/{entity_id}             → {routable_via_sahyog, route}
+POST /sahyog/disclosure    {trace_id, case_reference?}  → {request_id, disclosure_payload}  # MOCK
 ```
+
+Deviations from the original sketch, all deliberate: `wallets` is a list so N complaints trace
+under ONE snapshot (§8 convergence needs comparable subgraphs); creation returns **202** when it
+also dispatches and 201 when it only creates; `/sahyog/disclosure` takes the `trace_id` and BUILDS
+the §17 payload rather than accepting one; and `candidates` is `vasp_candidates` on the wire.
+Every trace id is a UUID path parameter — malformed ids are 422, never a database error.
 
 ```python
 class TraceResult(BaseModel):
     trace_id: str
-    state: Literal["ATTRIBUTED","BROKEN_AT_MIXER","BROKEN_AT_BRIDGE","BROKEN_AT_DEX",
-                   "UNATTRIBUTED","ERROR"]
+    state: Literal["ATTRIBUTED","ATTRIBUTED_INFRA","AMBIGUOUS","REPORTED_NOT_CROWNED",
+                   "BROKEN_AT_MIXER","BROKEN_AT_BRIDGE","BROKEN_AT_DEX",
+                   "UNATTRIBUTED","INCOMPLETE"]
     candidates: list[Candidate]      # ranked; each: entity, confidence, breakdown, nearest{hops,tx,...},
                                      #                deposit_event, role_basis, provenance[]
     recommended: Optional[str]       # crowned entity id, or None if abstaining
-    separation: Optional[str]        # HIGH | LOW | None
+    separation: Optional[str]        # HIGH | LOW — None when fewer than two candidates exist
     flags: list[str]                 # e.g. ["mixer:tornado", "dex:uniswap_v3", "bridge:multichain"]
     pins: dict                       # snapshot_block, label_set_version, adapter_version, weight_hash
 ```
@@ -611,7 +654,11 @@ FastAPI auto-generates the OpenAPI contract; the `/sahyog/*` stubs are real and 
 ## 15. SECURITY / PII POSTURE
 
 - Secrets via environment only; none in the repo; `.env.example` documents them.
-- `audit_log` append-only; per-case access token on the API (prototype-grade authz).
+- `audit_log` append-only, **enforced by a trigger** (a comment is not a control: UPDATE and
+  DELETE both succeeded until one was added).
+- **No authn yet.** The per-case access token is *not* built: the API and the Neo4j browser bind to
+  `127.0.0.1` only, which is the demo-grade mitigation, and token-scoped access stays future work.
+  Anyone who can reach the port can read every case.
 - **A wallet is not a person.** Attribution is to a *VASP*; identifying the human behind a
   deposit address is the VASP's KYC under a lawful SAHYOG request — not something the tool claims.
 - Production needs real authn/authz, encryption at rest, a data-retention/DPDP policy — named as

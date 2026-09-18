@@ -135,7 +135,7 @@ export function ScoreBreakdown({ r }: { r: TraceResult }) {
             setProfiles(await rescore(r.trace_id, { perturb_pct: 0.2, profiles: 12 }))
             setErr(null)
           } catch (e) { setErr(String(e)) }
-        }}>run the harness's 12 seeded ±20% profiles</button>
+        }}>re-rank under 12 seeded ±20% profiles</button>
         {profiles?.stability && (
           <span className={`tag ${profiles.stability.unchanged === profiles.stability.n ? 'green' : 'amber'}`}>
             top-1 unchanged in {profiles.stability.unchanged} of {profiles.stability.n} profiles
@@ -147,8 +147,10 @@ export function ScoreBreakdown({ r }: { r: TraceResult }) {
 
       <div className="note">
         Each profile jitters every weight by up to ±20% and renormalizes to 1 — the same operation
-        the eval harness runs, executed here by the same backend function, so the control on screen
-        and the shipped golden-set number are one test rather than two. The frozen profile is never
+        the eval harness runs (it uses 20 profiles per case), executed here by the same backend
+        function, so the control on screen and the shipped number are one test rather than two.
+        With a single candidate the ranking cannot move whatever the weights do, so this control
+        only evidences stability on a case that reached two or more candidates. The frozen profile is never
         modified: this is a what-if over a stored trace, which is why it costs zero provider calls.
       </div>
     </div>

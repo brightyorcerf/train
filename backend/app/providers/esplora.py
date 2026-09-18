@@ -20,9 +20,17 @@ import httpx
 
 from app.boundary.change import coinjoin_reason, detect_change
 from app.core.config import settings
-from app.providers.base import IMMUTABLE, BlockchainProvider, Edge, ProviderError, TxIn, TxOut, TxRecord
 from app.core.ratelimit import open_limiter
-from app.providers.store import open_store
+from app.providers.base import (
+    IMMUTABLE,
+    BlockchainProvider,
+    Edge,
+    ProviderError,
+    TxIn,
+    TxOut,
+    TxRecord,
+)
+from app.providers.store import body_hash, open_store
 
 
 class EsploraProvider(BlockchainProvider):
@@ -37,7 +45,11 @@ class EsploraProvider(BlockchainProvider):
         self.snapshot = snapshot          # scope for volatile reads that take no until_block (stats)
         self.limiter = open_limiter() if limiter == "auto" else limiter
         self.calls, self.upstream, self.store_hits, self.stale = 0, 0, 0, []
-        self.requests: list[str] = []        # every logical read, for the audit-log upstream hash (§12)
+        self.requests: list[str] = []        # every logical read, in order (§12)
+        # sha256 of each response BODY, in read order. The audit-log provenance hash is built
+        # from these: hashing the request URLs proved only which questions were asked, never
+        # what came back, so it could not detect changed upstream data (§12 reproduce-and-verify).
+        self.body_hashes: list[str] = []
         self.calls_by, self.trips = Counter(), Counter()
         self.down_until: dict[str, float] = {}
         self.truncated: set[str] = set()   # addresses whose history exceeded the page cap
@@ -59,7 +71,7 @@ class EsploraProvider(BlockchainProvider):
             body = self.store.get(req, sc)
             if body is not None:
                 self.store_hits += 1
-                return body
+                return self._seen(body)
         if self.offline:
             raise ProviderError(f"offline: {path} not in the raw store (scopes {list(scopes)})")
         try:
@@ -72,11 +84,16 @@ class EsploraProvider(BlockchainProvider):
                 raise
             body, sc, at = old
             self.stale.append(f"{path} (stored {at:%Y-%m-%d %H:%M} under {sc})")
-            return body
+            return self._seen(body)
         sc = keep(j) if keep else (scopes[0] if scopes else None)
         if self.store and sc:
             self.store.put(req, sc, "esplora", j)
-        return j
+        return self._seen(j)
+
+    def _seen(self, body):
+        """Record the content hash of one response body (§12 provenance) and hand it back."""
+        self.body_hashes.append(body_hash(body))
+        return body
 
     def _fetch(self, path: str):
         now = time.time()

@@ -73,11 +73,15 @@ const STYLE: cytoscape.StylesheetJson = [
     selector: 'node[kind = "address"]',
     style: { shape: 'ellipse', 'background-color': 'data(fill)', 'border-color': 'data(stroke)' },
   },
-  // Confidence as glow: the index drives shadow size, so a strong candidate is visibly hotter than
-  // a weak one without printing a number the viewer would read as a probability (§11.1).
+  // Confidence as glow: the index drives the underlay size, so a strong candidate is visibly
+  // hotter than a weak one without printing a number the viewer would read as a probability
+  // (§11.1). Cytoscape 3 has no node shadow-* properties — the previous `shadow-blur` styles were
+  // silently ignored AND broke `tsc -b`, so neither the glow nor the crown halo ever rendered.
   {
     selector: 'node[glow > 0]',
-    style: { 'shadow-blur': 'data(glow)', 'shadow-color': 'data(stroke)', 'shadow-opacity': 0.9 },
+    style: {
+      'underlay-color': 'data(stroke)', 'underlay-padding': 'data(glow)', 'underlay-opacity': 0.35,
+    },
   },
   {
     selector: 'node[?isWallet]',
@@ -92,7 +96,7 @@ const STYLE: cytoscape.StylesheetJson = [
     style: {
       'border-color': COLORS.gold, 'border-width': 4, width: 40, height: 40,
       color: COLORS.gold, 'font-size': 11, 'font-weight': 'bold',
-      'shadow-blur': 26, 'shadow-color': COLORS.gold, 'shadow-opacity': 0.95,
+      'underlay-color': COLORS.gold, 'underlay-padding': 12, 'underlay-opacity': 0.45,
     },
   },
   // A mixer is a wall, not a node you might click through.

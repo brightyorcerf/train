@@ -18,12 +18,13 @@ from neo4j.exceptions import DriverError, Neo4jError
 
 from app.api.timeline import Phases
 from app.attribution.engine import attribute_result
+from app.core.config import ADAPTER_VERSION
 from app.db import connect
 from app.db.edges import save_edges, save_txs
 from app.db.evidence import save_labels
 from app.graph.client import Graph
 from app.labels.propagate import SameOwner, propagate
-from app.labels.registry import PgRegistry
+from app.labels.registry import Label, PgRegistry
 from app.trace.engine import HARD_MAX_HOPS, MAX_CALLS, Tracer, _hit
 from worker.celery_app import app
 
@@ -34,10 +35,14 @@ STATES = ("QUEUED", "FETCHING", "SCORING", "DONE", "FAILED")
 def open_case(wallet: str, chain: str, snapshot: int, label_set: str | None = None, source="manual",
               params: dict | None = None) -> tuple[str, str, dict]:
     with connect() as c:
-        ls = label_set or c.execute("SELECT version FROM label_set ORDER BY created_at DESC LIMIT 1").fetchone()[0]
+        row = c.execute("SELECT version FROM label_set ORDER BY created_at DESC LIMIT 1").fetchone()
+        if not (label_set or row):
+            raise LookupError("no label set in Postgres — run `python -m app.labels.ingest` first "
+                              "(see README Quickstart)")
+        ls = label_set or row[0]
         case_id, trace_id = str(uuid.uuid4()), str(uuid.uuid4())
-        pins = {"snapshot_block": snapshot, "label_set_version": ls, "adapter_version": "day6",
-                "max_calls": MAX_CALLS}
+        pins = {"snapshot_block": snapshot, "label_set_version": ls,
+                "adapter_version": ADAPTER_VERSION, "max_calls": MAX_CALLS}
         c.execute("INSERT INTO cases (id, wallet, chain, source, snapshot_block, label_set_version, params) "
                   "VALUES (%s, %s, %s, %s, %s, %s, %s)",
                   (case_id, wallet, chain, source, snapshot, ls, json.dumps(params or {})))
@@ -105,18 +110,40 @@ def _index(chain, edges, txs, labels=None, entities=None) -> list[str]:
                 pass
 
 
+STALL_AFTER_S = 600      # the console gives up at 600s too; past that a job is not "running"
+
+
+def sweep_stalled(trace_id=None) -> int:
+    """Land jobs that stopped making progress in FAILED. -> rows changed.
+
+    The errback only fires when a task RAISES. A worker killed mid-chord raises nothing, so the row
+    kept its last in-flight state forever (Redis redelivery is capped by visibility_timeout, and
+    the chord callback can be lost outright). Without this, "a trace either finishes or lands
+    FAILED" was untrue for the one failure mode a live demo actually hits: a dead worker.
+    """
+    with connect() as c:
+        return c.execute(
+            "UPDATE trace_jobs SET state = 'FAILED', finished_at = now(), "
+            "error = coalesce(error, 'stalled: no terminal state after "
+            f"{STALL_AFTER_S}s — worker lost mid-trace (see the worker log); re-run the case') "
+            "WHERE state IN ('QUEUED','FETCHING','SCORING') "
+            f"AND coalesce(started_at, now()) < now() - interval '{STALL_AFTER_S} seconds'"
+            + (" AND id = %s" if trace_id else ""),
+            (str(trace_id),) if trace_id else ()).rowcount
+
+
 def job(trace_id) -> dict:
     with connect() as c:
         r = c.execute("SELECT state, current_hop, progress, result, error FROM trace_jobs WHERE id = %s",
                       (trace_id,)).fetchone()
-    return dict(zip(("state", "current_hop", "progress", "result", "error"), r)) if r else {}
+    return dict(zip(("state", "current_hop", "progress", "result", "error"), r, strict=True)) if r else {}
 
 
 # ---------- the two tasks ----------
 @app.task(queue="fetch", bind=True, max_retries=2)
 def expand_task(self, ctx: dict, node: dict) -> dict:
     """One frontier node: fetch its outgoing value, run sweep + boundary checks, persist its edges."""
-    t = _tracer(ctx)
+    t = _tracer(ctx, ctx.get("labels"))
     ph = Phases()
     with ph.phase("fetch"):          # provider I/O + normalization happen together inside expand_node
         r = t.expand_node(node)
@@ -134,22 +161,34 @@ def expand_task(self, ctx: dict, node: dict) -> dict:
         conn.execute("INSERT INTO audit_log (trace_id, input_params, upstream_hash, actor) VALUES (%s,%s,%s,%s)",
                      (ctx["trace_id"], json.dumps({"address": node["addr"], "hop": node["hop"],
                                                    "chain": ctx["chain"], "snapshot": ctx["until"]}),
-                      hashlib.sha256("\n".join(t.prov.requests).encode()).hexdigest(), "worker"))
+                      hashlib.sha256("\n".join(t.prov.body_hashes).encode()).hexdigest(), "worker"))
     finally:
         conn.close()
     return {"node": node, "moves": r["moves"], "flags": r["flags"], "so_edges": r["so_edges"],
             "hit": _hit(node, r["hit"], node["hop"], 0) if r["hit"] else None,
             "evidence": r["evidence"], "stop": r["stop"], "calls": t.prov.calls,
-            "upstream": t.prov.upstream, "stale": t.prov.stale, "phases": ph.as_dict()}
+            "upstream": t.prov.upstream, "store_hits": t.prov.store_hits, "stale": t.prov.stale,
+            # Labels this node PROVED (sweep-proven deposits, §6.2c). They live in the registry
+            # overlay, which dies with this task's Tracer — so they ride back on the result and are
+            # rehydrated by level_done. Without this the chord driver lost every derived label:
+            # `evidence` stayed empty, propagation ran against a bare registry, and the next hop
+            # could not see a deposit address the previous hop had just proven.
+            "labels": [vars(l) for labs in t.reg.labels.values() for l in labs],
+            "phases": ph.as_dict()}
 
 
 @app.task(queue="trace")
 def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     """Chord callback: merge one hop's results, decide the next frontier, recurse or finish."""
-    t = _tracer(ctx)
+    t = _tracer(ctx, state.get("labels"))
     hop = state["hop"]
     state["calls"] += sum(r["calls"] for r in results)
     state["upstream"] += sum(r["upstream"] for r in results)
+    state["store_hits"] += sum(r.get("store_hits", 0) for r in results)
+    for r in results:                     # rehydrate the overlay this level's workers derived
+        for d in r.get("labels") or []:
+            t.reg.add_label(Label(**d))
+    state["labels"] = [vars(l) for labs in t.reg.labels.values() for l in labs]
     state["stale"] += [s for r in results for s in r["stale"]]
     # §16: each worker timed its own phases; sum them across the level. The sum is work done, not
     # elapsed time (the tasks ran in parallel) — timeline.summarize() states that in its response.
@@ -170,21 +209,33 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
             nxt += t.absorb(r["moves"], r["node"], hop, nodes, state["hits"], state["flags"])
     for h in state["hits"]:
         h.setdefault("calls_at_hit", state["calls"])
-    new = propagate(t.reg, ctx["chain"], [SameOwner(*e) for e in state["so_edges"]])
+    propagate(t.reg, ctx["chain"], [SameOwner(*e) for e in state["so_edges"]])   # adds to the overlay
     state["nodes"] = list(nodes.values())
 
-    done = bool(state["hits"]) or not nxt or hop >= ctx["max_hops"] or state["calls"] >= MAX_CALLS
+    # §10 wants EVERY reachable endpoint ranked, and the eval harness measures exactly that
+    # (collect_all=True). This driver stops at the first hop level that produced a hit, so the
+    # ranking sees a subset — the shipped algorithm and the evaluated one are NOT the same, and
+    # that divergence is recorded in reportscratchpad.md (F12) rather than papered over.
+    #
+    # Why it is not simply flipped on: one chord task per frontier node re-creates a Tracer, a
+    # PgRegistry (entities loaded per task), a store connection and a limiter, so the per-node
+    # overhead dominates. Measured on this host: Case B with collect_all took 1901s versus ~3s
+    # stopping at the first hit — past the console's own 600s ceiling. Fixing the per-task setup
+    # cost is the prerequisite for turning this on by default.
+    first_hit_stop = bool(state["hits"]) and not ctx.get("collect_all", False)
+    done = first_hit_stop or not nxt or hop >= ctx["max_hops"] or state["calls"] >= MAX_CALLS
     if not done:
         set_state(ctx["trace_id"], "FETCHING", hop=hop + 1, progress=round(hop / ctx["max_hops"], 2))
         state["hop"] = hop + 1
-        return _dispatch(ctx, nxt, state)
+        return _dispatch({**ctx, "labels": state["labels"]}, nxt, state)
 
     reason = ("hit" if state["hits"] else "no further outgoing value" if not nxt
               else f"api-call budget ({MAX_CALLS}) exhausted" if state["calls"] >= MAX_CALLS
               else f"hop budget ({ctx['max_hops']}) exhausted")
     set_state(ctx["trace_id"], "SCORING", hop=hop, progress=1.0)
     t.prov.calls, t.prov.upstream, t.prov.stale = state["calls"], state["upstream"], state["stale"]
-    derived = [l for labs in t.reg.labels.values() for l in labs] + new
+    t.prov.store_hits = state["store_hits"]
+    derived = [l for labs in t.reg.labels.values() for l in labs]   # overlay already includes `new`
     wall = round(time.time() - state["wall_start"], 2) if state.get("wall_start") else 0
     out = t.result(ctx["wallet"], state["hits"], state["flags"], {n["addr"]: n for n in state["nodes"]},
                    state["so_edges"], state["evidence"], reason, wall)
@@ -218,22 +269,25 @@ def _dispatch(ctx, frontier, state):
     return chord(header)(level_done.s(ctx, state).set(link_error=eb)).id
 
 
-def _tracer(ctx) -> Tracer:
-    return Tracer(ctx["chain"], ctx["until"], ctx["pins"]["label_set_version"], ctx["fanout"],
-                  offline=ctx.get("offline", False))
+def _tracer(ctx, labels=()) -> Tracer:
+    t = Tracer(ctx["chain"], ctx["until"], ctx["pins"]["label_set_version"], ctx["fanout"],
+               offline=ctx.get("offline", False))
+    for d in labels or ():        # labels earlier hops derived, so this hop can see them (§6.2b/c)
+        t.reg.add_label(Label(**d))
+    return t
 
 
 def start_trace(wallet: str, chain: str, snapshot: int, max_hops=4, fanout=5, label_set=None, graph=False,
-                offline=False, source="manual") -> dict:
+                offline=False, source="manual", collect_all=False) -> dict:
     """Create the case + job (pins recorded), then kick off hop 1. Returns ids immediately (202, §14)."""
     case_id, trace_id, pins = open_case(wallet, chain, snapshot, label_set, source,
                                         {"max_hops": max_hops, "fanout": fanout})
     return dispatch_trace(case_id, trace_id, pins, wallet, chain, snapshot, max_hops, fanout,
-                          graph=graph, offline=offline)
+                          graph=graph, offline=offline, collect_all=collect_all)
 
 
 def dispatch_trace(case_id: str, trace_id: str, pins: dict, wallet: str, chain: str, snapshot: int,
-                   max_hops=4, fanout=5, graph=False, offline=False) -> dict:
+                   max_hops=4, fanout=5, graph=False, offline=False, collect_all=False) -> dict:
     """Kick off hop 1 for a case/job row that ALREADY exists.
 
     §14 splits case creation (POST /cases -> case_id) from execution (POST /trace {case_id}), so the
@@ -241,7 +295,7 @@ def dispatch_trace(case_id: str, trace_id: str, pins: dict, wallet: str, chain: 
     state QUEUED; this is the seam where it becomes FETCHING."""
     ctx = {"wallet": wallet, "chain": chain, "until": snapshot, "max_hops": min(max_hops, HARD_MAX_HOPS),
            "fanout": fanout, "trace_id": trace_id, "case_id": case_id, "pins": pins, "graph": graph,
-           "offline": offline}
+           "offline": offline, "collect_all": collect_all, "labels": []}
     reg = PgRegistry(pins["label_set_version"])
     start = {"addr": wallet, "hop": 0, "since": 0, "via": None, "utxos": None, "utxo_via": {}}
     # Elapsed is measured from here, the moment the job is dispatched, because that is the clock the
@@ -249,7 +303,8 @@ def dispatch_trace(case_id: str, trace_id: str, pins: dict, wallet: str, chain: 
     # driver never did, so every chord-driven trace reported wall_clock_s = 0 and the "time to a
     # lead" number had nothing behind it. A float survives the JSON hop between tasks unchanged.
     state = {"hop": 1, "nodes": [start], "hits": [], "flags": [], "so_edges": [], "evidence": [],
-             "calls": 0, "upstream": 0, "stale": [], "phases": {}, "wall_start": time.time()}
+             "calls": 0, "upstream": 0, "store_hits": 0, "stale": [], "labels": [], "phases": {},
+             "wall_start": time.time()}
     lab = reg.best(chain, wallet)
     if lab:
         state["hits"].append(_hit(start, lab, 0, 0))

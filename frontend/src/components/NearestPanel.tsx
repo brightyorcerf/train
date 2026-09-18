@@ -28,7 +28,8 @@ export function NearestPanel({ r }: { r: TraceResult }) {
               <div className="dim" style={{ fontSize: 12 }}>deposit event</div>
               <div className="mono trunc">{n.deposit_event.tx}</div>
               <div className="dim mono" style={{ fontSize: 12 }}>
-                {ts(n.deposit_event.ts)} · {n.deposit_event.amount_btc ?? n.deposit_event.amount} BTC
+                {ts(n.deposit_event.ts)} · {n.deposit_event.amount_btc ?? n.deposit_event.amount}{' '}
+                {n.deposit_event.amount_btc != null ? 'BTC' : (n.path?.[0]?.asset ?? '')}
               </div>
             </div>
           )}

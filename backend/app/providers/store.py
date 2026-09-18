@@ -17,6 +17,12 @@ def canonical(body) -> str:
     return json.dumps(body, sort_keys=True, separators=(",", ":"))
 
 
+def body_hash(body) -> str:
+    """sha256 of the canonical body — the same digest `put()` content-addresses under, so a
+    provenance hash computed from a live read and one computed from a replay are identical (§12)."""
+    return hashlib.sha256(canonical(body).encode()).hexdigest()
+
+
 class RawStore:
     def __init__(self, conn=None):
         self.conn = conn or connect(autocommit=True)

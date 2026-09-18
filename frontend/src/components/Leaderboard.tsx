@@ -22,11 +22,15 @@ export function Leaderboard({ r }: { r: TraceResult }) {
     <div className="panel">
       <h2>
         Leaderboard — confidence index /100
-        {r.separation && (
+        {/* Separation is the gap between the top TWO. With one candidate the backend now sends
+            null, and saying so beats printing the sole score as if it were a margin. */}
+        {r.separation ? (
           <span className={`tag ${r.separation === 'HIGH' ? 'green' : 'amber'}`} style={{ marginLeft: 10 }}>
             separation: {r.separation}{r.separation_pts != null ? ` (${r.separation_pts} pts)` : ''}
           </span>
-        )}
+        ) : cands.length === 1 ? (
+          <span className="tag dim" style={{ marginLeft: 10 }}>single candidate — no separation</span>
+        ) : null}
       </h2>
       <table>
         <thead>
@@ -56,6 +60,8 @@ export function Leaderboard({ r }: { r: TraceResult }) {
       <div className="note">
         Confidence index, not a probability and not ownership. Separation is the gap between #1 and
         #2 — a LOW gap is why the engine sometimes declines to crown anything.
+        {r.below_floor && ' This candidate is listed but NOT crowned: it scores below the floor for'
+          + ' naming a disclosure target, so the engine reports it without recommending it.'}
       </div>
     </div>
   )

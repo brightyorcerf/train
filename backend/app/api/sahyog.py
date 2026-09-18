@@ -42,7 +42,7 @@ def onboarding(entity_id: str, reg: PgRegistry | None = None) -> dict:
         "routable_via_sahyog": confirmed,
         "route": (f"SAHYOG portal ({LEGAL_BASIS})" if confirmed else
                   "NOT on the SAHYOG portal in our label set — route by MLAT / direct legal "
-                  f"process to the VASP's jurisdiction, or confirm onboarding out of band"),
+                  "process to the VASP's jurisdiction, or confirm onboarding out of band"),
     }
 
 

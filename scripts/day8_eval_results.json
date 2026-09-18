@@ -7,12 +7,14 @@
     "state": "ATTRIBUTED",
     "recommended": "binance",
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [
       [
         "binance",
         69
       ]
     ],
+    "n_candidates": 1,
     "hops": 4,
     "min_hops": 4,
     "endpoint": "17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE",
@@ -20,7 +22,7 @@
     "calls": 200,
     "upstream": 0,
     "store_hits": 200,
-    "wall_s": 1.0,
+    "wall_s": 0.4,
     "flags": [
       "ofac:Polyanin Yevgeniy Igorevich@3LkPxybBzP7EkLmg8fH2jDhxDqaZuu59H3(hop 2)"
     ],
@@ -35,12 +37,14 @@
     "state": "ATTRIBUTED",
     "recommended": "binance",
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [
       [
         "binance",
         70
       ]
     ],
+    "n_candidates": 1,
     "hops": 1,
     "min_hops": 1,
     "endpoint": "1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP",
@@ -48,7 +52,7 @@
     "calls": 40,
     "upstream": 0,
     "store_hits": 35,
-    "wall_s": 0.3,
+    "wall_s": 0.2,
     "flags": [
       "partial:provider_unavailable at 32LSX4XUTYdL1a6XmgzNuBmTDBpwboE9M8 (hop 3): offline: /tx/d046306fd006d5c48623f37f993e6b5a76e4458ab3d741a1e1bf9b62f97e134d/outspend/0 not in the raw store (scopes ['",
       "partial:provider_unavailable at 3EPvxq3c3YFWvfGjb85ofB7m3gKSsQPB62 (hop 3): offline: /tx/d046306fd006d5c48623f37f993e6b5a76e4458ab3d741a1e1bf9b62f97e134d/outspend/1 not in the raw store (scopes ['",
@@ -65,12 +69,14 @@
     "state": "ATTRIBUTED",
     "recommended": "binance",
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [
       [
         "binance",
         70
       ]
     ],
+    "n_candidates": 1,
     "hops": 3,
     "min_hops": 3,
     "endpoint": "18QHggCdfXfZXQR2aw6Whxz8FiSucanQrg",
@@ -78,7 +84,7 @@
     "calls": 98,
     "upstream": 0,
     "store_hits": 77,
-    "wall_s": 1.6,
+    "wall_s": 1.1,
     "flags": [
       "coinjoin_boundary:b871624fbe1178e25d9717c252754289b4abb2bc61ae88a7a2fb93f6a9f327ff(18 equal outputs of 600000000 sats from 21 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)",
       "coinjoin_boundary:55a8c633aaf65c616528aef41ef939f41f00ac6672bf8a906413b6fb0cbaeb4b(18 equal outputs of 600000000 sats from 32 distinct input addresses) from 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE (hop 0)",
@@ -95,12 +101,14 @@
     "state": "ATTRIBUTED",
     "recommended": "bitfinex",
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [
       [
         "bitfinex",
         59
       ]
     ],
+    "n_candidates": 1,
     "hops": 3,
     "min_hops": 3,
     "endpoint": "0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b",
@@ -108,7 +116,7 @@
     "calls": 12,
     "upstream": 0,
     "store_hits": 12,
-    "wall_s": 0.2,
+    "wall_s": 0.7,
     "flags": [
       "ofac:KARASAVIDI Dmitrii@0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b(hop 3)"
     ],
@@ -123,12 +131,14 @@
     "state": "ATTRIBUTED",
     "recommended": "binance",
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [
       [
         "binance",
         70
       ]
     ],
+    "n_candidates": 1,
     "hops": 2,
     "min_hops": 2,
     "endpoint": "19msUPsm7cHG8pGTavUr2AeZJsoRTNju1P",
@@ -136,7 +146,7 @@
     "calls": 39,
     "upstream": 0,
     "store_hits": 30,
-    "wall_s": 0.4,
+    "wall_s": 0.2,
     "flags": [
       "partial:provider_unavailable at 373bM5zNuwVPYe8aWpvCN1gnsyTcmswZod (hop 2): offline: /tx/5ee42bd36a3a9eebc1b1d0646bb139dbb8aa2c0a53b7e297c2d26de876896788/outspend/1 not in the raw store (scopes ['",
       "partial:provider_unavailable at 13u1pzpKWfTHZYhuSsCqek52L9QCQrCfQ8 (hop 3): offline: /tx/7e0468bcd9bdad9d93b5f472c54da1b361c7733ec6e2a28226411524a3adcb3e/outspend/1 not in the raw store (scopes ['",
@@ -150,10 +160,12 @@
     "chain": "btc",
     "expect": "UNATTRIBUTED",
     "expected_entity": null,
-    "state": "UNATTRIBUTED",
+    "state": "INCOMPLETE",
     "recommended": null,
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [],
+    "n_candidates": 0,
     "hops": null,
     "min_hops": null,
     "endpoint": null,
@@ -161,13 +173,13 @@
     "calls": 57,
     "upstream": 0,
     "store_hits": 43,
-    "wall_s": 0.7,
+    "wall_s": 2.1,
     "flags": [
       "partial:provider_unavailable at 3N9CVkiUR3ej5uVWLtVgk8Vx23U2ZmH4Zu (hop 3): offline: /tx/6a8154d93a99312b8c92082e73d7470c398dd62fa684d1c517b928c39d186c66/outspend/0 not in the raw store (scopes ['",
       "coinjoin_boundary:e5e58e2058fed3b8e6a56d505cd9d0a415d49e71d22148fccd9684c6e41a6546(42 equal outputs of 10994615 sats from 64 distinct input addresses) from bc1q9gpgex4azgl8et5jaxatd4kkwckzsyswnzqkj6 (hop 3)",
       "coinjoin_boundary:f744bea5d68861bad3dd52b307419895e7040d722640ea5b956b7074fa4245fa(60 equal outputs of 10994138 sats from 86 distinct input addresses) from bc1qa5y4hj332uhjk9p53t67wj9lqtptw95zxyunyd (hop 3)"
     ],
-    "verdict": "CORRECT",
+    "verdict": "INCOMPLETE",
     "stable": "20/20"
   },
   {
@@ -178,7 +190,9 @@
     "state": "UNATTRIBUTED",
     "recommended": null,
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [],
+    "n_candidates": 0,
     "hops": null,
     "min_hops": null,
     "endpoint": null,
@@ -186,7 +200,7 @@
     "calls": 19,
     "upstream": 0,
     "store_hits": 19,
-    "wall_s": 4.1,
+    "wall_s": 1.5,
     "flags": [
       "service_hub_boundary:12cgpFdJViXbwHbhrA3TuW1EGnL25Zqc3P(77195 receipts, hop 1)"
     ],
@@ -198,10 +212,12 @@
     "chain": "btc",
     "expect": "UNATTRIBUTED",
     "expected_entity": null,
-    "state": "UNATTRIBUTED",
+    "state": "INCOMPLETE",
     "recommended": null,
     "ambiguous": false,
+    "below_floor": false,
     "ranked": [],
+    "n_candidates": 0,
     "hops": null,
     "min_hops": null,
     "endpoint": null,
@@ -213,7 +229,7 @@
     "flags": [
       "partial:provider_unavailable at 1HpaHr2pQmVPuFWwNKm7hqjndQPMULNYz5 (hop 0): offline: /address/1HpaHr2pQmVPuFWwNKm7hqjndQPMULNYz5/txs/chain not in the raw store (scopes ['snapshot:719000'])"
     ],
-    "verdict": "CORRECT",
+    "verdict": "INCOMPLETE",
     "stable": "20/20"
   }
 ]

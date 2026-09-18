@@ -27,7 +27,7 @@ services:
       # 8 GB laptops: default heap sizing starves the Docker VM
       NEO4J_server_memory_heap_max__size: 512m
       NEO4J_server_memory_pagecache_size: 256m
-    ports: ["7474:7474", "7687:7687"]
+    ports: ["127.0.0.1:7474:7474", "127.0.0.1:7687:7687"]   # loopback: derived index, default creds
     volumes: [neo4jdata:/data]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null || exit 1"]
@@ -48,7 +48,7 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       neo4j: {condition: service_healthy}
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:8000:8000"]   # no authn yet (§15): loopback only, never the venue Wi-Fi
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -72,10 +72,16 @@ services:
 
   frontend:
     build: ./frontend
-    ports: ["5173:5173"]
+    # vite.config.ts proxies /api here. Without it the dev server proxies to its OWN container on
+    # 127.0.0.1:8000 and every API call fails with ECONNREFUSED while the container still looks up.
+    environment:
+      API_URL: http://api:8000
+    ports: ["127.0.0.1:5173:5173"]
     depends_on: [api]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5173"]
+      # Through the proxy on purpose: fetching / only proves Vite is serving its own index.html,
+      # which stayed true while the whole API path was broken.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5173/api/health"]
       interval: 10s
       retries: 10
 

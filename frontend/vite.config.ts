@@ -5,8 +5,8 @@ import react from '@vitejs/plugin-react'
 declare const process: { env: Record<string, string | undefined> }
 
 // The backend has no CORS middleware, so the dev server proxies instead of the API
-// loosening its origin policy. API_URL is set to http://api:8000 by compose; on the
-// host it defaults to the published port.
+// loosening its origin policy. compose sets API_URL=http://api:8000 for the container;
+// on the host it defaults to the published port.
 const target = process.env.API_URL || 'http://127.0.0.1:8000'
 
 export default defineConfig({

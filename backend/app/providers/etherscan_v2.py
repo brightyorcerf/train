@@ -29,8 +29,16 @@ import httpx
 
 from app.core.config import settings
 from app.core.ratelimit import open_limiter
-from app.providers.base import IMMUTABLE, BlockchainProvider, Edge, ProviderError, TxIn, TxOut, TxRecord
-from app.providers.store import open_store
+from app.providers.base import (
+    IMMUTABLE,
+    BlockchainProvider,
+    Edge,
+    ProviderError,
+    TxIn,
+    TxOut,
+    TxRecord,
+)
+from app.providers.store import body_hash, open_store
 
 ES = "https://api.etherscan.io/v2/api"
 CHAIN_ID = {"eth": 1, "polygon": 137}
@@ -62,7 +70,11 @@ class EtherscanV2Provider(BlockchainProvider):
         self.limiter = open_limiter() if limiter == "auto" else limiter
         self.calls, self.upstream, self.store_hits, self.retries = 0, 0, 0, 0
         self.stale: list[str] = []
-        self.requests: list[str] = []        # every logical read, for the audit-log upstream hash (§12)
+        self.requests: list[str] = []        # every logical read, in order (§12)
+        # sha256 of each response BODY, in read order. The audit-log provenance hash is built
+        # from these: hashing the request URLs proved only which questions were asked, never
+        # what came back, so it could not detect changed upstream data (§12 reproduce-and-verify).
+        self.body_hashes: list[str] = []
         self.calls_by = Counter()          # per action
         self.truncated: set[str] = set()
         self._tip: int | None = None
@@ -83,7 +95,7 @@ class EtherscanV2Provider(BlockchainProvider):
             if body is not None:
                 self.store_hits += 1
                 self._memo[req] = body
-                return body
+                return self._seen(body)
         if self.offline:
             raise ProviderError(f"offline: {req} not in the raw store")
         try:
@@ -94,12 +106,17 @@ class EtherscanV2Provider(BlockchainProvider):
                 raise
             body, sc, at = old
             self.stale.append(f"{req[:60]}… (stored {at:%Y-%m-%d %H:%M})")
-            return body
+            return self._seen(body)
         if cacheable:
             self._memo[req] = res
             if self.store:
                 self.store.put(req, IMMUTABLE, "etherscan_v2", res)
-        return res
+        return self._seen(res)
+
+    def _seen(self, body):
+        """Record the content hash of one response body (§12 provenance) and hand it back."""
+        self.body_hashes.append(body_hash(body))
+        return body
 
     def _fetch(self, params):
         for attempt in range(5):
@@ -160,8 +177,18 @@ class EtherscanV2Provider(BlockchainProvider):
         for _ in range(max_pages or self.page_cap):
             page = self._get(self._final(until_block), module="account", action=action, address=address.lower(),
                              startblock=start, endblock=end, page=1, offset=PAGE, sort=sort)
+            # Dedupe exists only for the re-read boundary block, so the key has to identify a ROW,
+            # not a (from,to,value) triple. tokentx returns no logIndex (§7.2 / observed 2026-09-12)
+            # and carried no contract here, so two identical ERC-20 transfers in one tx — and two
+            # DIFFERENT tokens moving equal amounts in one tx — collapsed into one, silently
+            # understating flows before _erc20 ever assigned its ordinals. The ordinal is counted
+            # within this page, which is stable across the boundary re-read.
+            ordinal: dict[tuple, int] = {}
             for t in page:
-                k = (t["hash"], t.get("logIndex"), t.get("traceId"), t["from"], t["to"], t["value"])
+                row = (t["hash"], t.get("logIndex"), t.get("traceId"), t["from"], t["to"], t["value"],
+                       (t.get("contractAddress") or "").lower())
+                ordinal[row] = ordinal.get(row, -1) + 1
+                k = row + (ordinal[row],)
                 if k not in seen:
                     seen.add(k)
                     out.append(t)

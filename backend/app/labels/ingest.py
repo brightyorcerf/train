@@ -21,8 +21,19 @@ from pathlib import Path
 
 import yaml
 
-from app.labels.registry import (DEPOSIT, DEX, HOT, MIXER, SANCTIONED, SOURCE_TIER, TOKEN, Label, Registry,
-                                 addr_key, norm)
+from app.labels.registry import (
+    DEPOSIT,
+    DEX,
+    HOT,
+    MIXER,
+    SANCTIONED,
+    SOURCE_TIER,
+    TOKEN,
+    Label,
+    Registry,
+    addr_key,
+    norm,
+)
 
 # Containers mount labels/ and vendor/ under REPO_ROOT (compose); host scripts use the checkout.
 REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])

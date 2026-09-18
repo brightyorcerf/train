@@ -26,6 +26,17 @@ def addr_key(chain: str, address: str) -> str:
     return address.lower() if chain != "btc" or address[:3].lower() == "bc1" else address
 
 
+# Shape only — these say "this string could be an address on this chain", never "this address
+# exists". Checked at the API boundary so a typo is a 400 with a reason instead of a trace that
+# burns provider calls to discover the address was never real (§15 input validation at the edge).
+_BTC = re.compile(r"^(?:[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-z0-9]{11,71})$")
+_EVM = re.compile(r"^0x[0-9a-fA-F]{40}$")
+
+
+def valid_address(chain: str, address: str) -> bool:
+    return bool((_BTC if chain == "btc" else _EVM).match(address or ""))
+
+
 def norm(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", name.lower())
 
@@ -104,6 +115,15 @@ class Registry:
         return dict(sorted(out.items()))
 
 
+# Entity rows for a pinned label-set version, cached for the life of the process. A label set is
+# immutable by construction (its version IS the hash of its contents), so re-reading ~4k VASP rows
+# per Registry is pure waste — and it is not small waste: measured at 1.27s per construction, paid
+# once per Celery task, which is what made a full-frontier trace take half an hour. Only the raw
+# rows are shared; every Registry builds its own Entity objects and its own overlay, so nothing one
+# trace derives can leak into another (§12).
+_ENTITY_ROWS: dict[str, list[tuple]] = {}
+
+
 class PgRegistry(Registry):
     """A pinned label-set version from Postgres (None = latest)."""
 
@@ -118,9 +138,12 @@ class PgRegistry(Registry):
         if not row:
             raise LookupError(f"label set {version or '(any)'} not in Postgres — run python -m app.labels.ingest")
         self.version, self.n_labels = row
-        for id, name, type, jur, aliases, sahyog in self.conn.execute(
+        rows = _ENTITY_ROWS.get(self.version)
+        if rows is None:
+            rows = _ENTITY_ROWS[self.version] = list(self.conn.execute(
                 "SELECT id, name, type, jurisdiction, aliases, sahyog FROM vasp WHERE label_set_version = %s",
-                (self.version,)):
+                (self.version,)))
+        for id, name, type, jur, aliases, sahyog in rows:
             self.add_entity(id, name, type=type, jurisdiction=jur, aliases=set(aliases), sahyog=sahyog)
         self._pinned: dict[tuple[str, str], list[Label]] = {}
 
@@ -134,6 +157,13 @@ class PgRegistry(Registry):
 
 
 def _selfcheck():
+    assert valid_address("btc", "12w6v1qAaBc4W8h8C2Cu5SKFaKDSv3erUW")
+    assert valid_address("btc", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
+    assert valid_address("eth", "0x7F367cC41522cE07553e823bf3be79A889DEbe1B")
+    for chain, bad in [("btc", "not-an-address"), ("btc", "0x7F367cC41522cE07553e823bf3be79A889DEbe1B"),
+                       ("btc", " 12w6v1qAaBc4W8h8C2Cu5SKFaKDSv3erUW"), ("btc", "1" * 100),
+                       ("eth", "12w6v1qAaBc4W8h8C2Cu5SKFaKDSv3erUW"), ("eth", "0xdeadbeef"), ("eth", "")]:
+        assert not valid_address(chain, bad), (chain, bad)
     r = Registry()
     r.add_entity("binance", "Binance", aliases={"Binance.com"})
     assert r.resolve("BINANCE") == r.resolve("Binance 14") == r.resolve("binance.com") == "binance"

@@ -93,14 +93,28 @@ CREATE TABLE IF NOT EXISTS trace_jobs (
     result jsonb, error text, started_at timestamptz, finished_at timestamptz,
     pins jsonb NOT NULL DEFAULT '{}'
 );
-CREATE TABLE IF NOT EXISTS audit_log (        -- append-only
+CREATE TABLE IF NOT EXISTS audit_log (        -- append-only, ENFORCED below (not merely intended)
     id bigserial PRIMARY KEY, trace_id uuid, ts timestamptz NOT NULL DEFAULT now(),
     input_params jsonb NOT NULL, upstream_hash text, actor text NOT NULL DEFAULT 'system'
 );
+-- §15 says the audit log is append-only. A comment is not a control: UPDATE and DELETE both
+-- succeeded (the app role is the table owner), so the trail could be rewritten by the same
+-- credentials the API uses. The trigger is the enforcement; revoking rights from a non-owner role
+-- is the production answer and is named as future work.
+CREATE OR REPLACE FUNCTION audit_log_append_only() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'audit_log is append-only (attempted %)', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS audit_log_no_rewrite ON audit_log;
+CREATE TRIGGER audit_log_no_rewrite BEFORE UPDATE OR DELETE ON audit_log
+    FOR EACH ROW EXECUTE FUNCTION audit_log_append_only();
 CREATE TABLE IF NOT EXISTS reports (
     id uuid PRIMARY KEY, case_id uuid REFERENCES cases(id), pdf_path text, content_hash text,
     adapter_version text, weight_hash text, created_at timestamptz NOT NULL DEFAULT now()
 );
+-- Viewing a report is not filing one: the same rendering of the same case is one row (§12).
+CREATE UNIQUE INDEX IF NOT EXISTS reports_case_content ON reports (case_id, content_hash);
 CREATE TABLE IF NOT EXISTS evidence (
     id bigserial PRIMARY KEY, trace_id uuid NOT NULL, candidate_entity text NOT NULL,
     factor text NOT NULL, value real, provenance jsonb NOT NULL DEFAULT '{}'

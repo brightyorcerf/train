@@ -42,7 +42,7 @@ def parse(xml_path: Path) -> list[dict]:
     entries: dict[str, dict] = {}       # ProfileID -> {date, programs}
     issued = ""
 
-    for event, el in ET.iterparse(xml_path, events=("end",)):
+    for _event, el in ET.iterparse(xml_path, events=("end",)):
         tag = el.tag.split("}")[-1]
         if not ns and "}" in el.tag:
             ns = el.tag.split("}")[0] + "}"

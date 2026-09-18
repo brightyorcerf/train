@@ -2,9 +2,14 @@
 
 The rule that matters: aggregate with **max + a saturating path count, never sum**. Fifty dusty
 paths to fifty Binance deposit addresses must not outrank one strong documented path — with a sum
-they would, by arithmetic alone. Each factor therefore takes its best value across the entity's
-candidates, and the breakdown records WHICH endpoint contributed each max, so the number stays
-auditable rather than a blend of unrelated evidence.
+they would, by arithmetic alone.
+
+The max is taken over **whole paths, not over factors**. Maxing each factor independently produced
+a score no real path had: a dust path with tight timing plus a large-value path with scattered
+timing scored 70 while the better of the two actually scored 61. The entity's number is now the
+best single path's number, and `factor_from` stays in the breakdown as a diagnostic showing which
+endpoint would have contributed each factor's maximum. The penalty and `penalties_applied`
+therefore also come from one path and always reconcile.
 
 Corroboration (several independent paths to the same entity) is real but weak: it saturates at
 TOP_K and is a RANKING TIEBREAK only — it never enters the score.
@@ -29,19 +34,20 @@ def by_entity(candidates: list[dict], flags=(), weights: dict | None = None) -> 
             pen, which = rules.path_penalty(flags, c)
             s, _ = score(f, pen, weights)
             per.append({"cand": c, "factors": f, "penalty": pen, "penalties_applied": which, "score": s})
-        best_f, source_of = {}, {}
+        source_of = {}
         for k in rules.factors(cands[0]):
             top = max(per, key=lambda p: (p["factors"][k], -p["cand"]["hops"]))
-            best_f[k], source_of[k] = top["factors"][k], top["cand"]["endpoint"]
-        penalty = max(p["penalty"] for p in per)          # max, not sum: one tainted path, one penalty
-        idx, breakdown = score(best_f, penalty, weights)
-        rep = sorted(per, key=lambda p: (-p["score"], p["cand"]["hops"], p["cand"]["endpoint"]))[0]["cand"]
+            source_of[k] = top["cand"]["endpoint"]
+        # The entity scores as its best single path — one coherent set of evidence, not a blend.
+        best = sorted(per, key=lambda p: (-p["score"], p["cand"]["hops"], p["cand"]["endpoint"]))[0]
+        idx, breakdown = score(best["factors"], best["penalty"], weights)
+        rep = best["cand"]
         nearest = min(cands, key=lambda c: (c["hops"], c["endpoint"]))
         out.append({
             "entity": entity, "entity_name": cands[0]["entity_name"], "sahyog": cands[0]["entity_sahyog"],
             "score": idx, "breakdown": {**breakdown, "factor_from": source_of,
-                                        "penalties_applied": rep and
-                                        next((p["penalties_applied"] for p in per if p["cand"] is rep), [])},
+                                        "scored_endpoint": best["cand"]["endpoint"],
+                                        "penalties_applied": best["penalties_applied"]},
             "n_paths": len(cands), "corroboration": round(min(len(cands), TOP_K) / TOP_K, 4),
             "best_claim": max((c["result"] for c in cands), key=lambda r: r == "ATTRIBUTED"),
             "nearest": {"hops": nearest["hops"], "endpoint": nearest["endpoint"],
@@ -74,10 +80,21 @@ def _selfcheck():
     assert ranked["scatterco"]["n_paths"] == 50 and ranked["scatterco"]["corroboration"] == 1.0
     # corroboration saturates and never enters the score: 50 paths score the same as 3 identical ones
     assert by_entity(scatter[:3])[0]["score"] == ranked["scatterco"]["score"]
-    # per-factor max is attributed to the endpoint that earned it
+    # per-factor max is attributed to the endpoint that earned it (diagnostic only)
     mixed = [cand("x", "cheap", 0.00001, tier="ofac"), cand("x", "rich", 50.0, tier="heuristic")]
-    b = by_entity(mixed)[0]["breakdown"]
+    row = by_entity(mixed)[0]
+    b = row["breakdown"]
     assert b["factor_from"]["source_tier"] == "cheap" and b["factor_from"]["dust_floor"] == "rich"
+    # ...but the SCORE is a real path's score, never a blend of both
+    from app.scoring.engine import score_candidate
+    assert row["score"] == max(score_candidate(mixed[0])[0], score_candidate(mixed[1])[0])
+    assert b["scored_endpoint"] in ("cheap", "rich")
+    # penalty and its explanation come from the same path, so the breakdown reconciles
+    clean = cand("p", "C", 5.0)
+    dirty = cand("p", "D", 0.00001)
+    dirty["path"] = [{"from": "s", "to": "mix", "tx": "t2"}, {"from": "mix", "to": "D", "tx": "t3"}]
+    br = by_entity([clean, dirty], flags=["mixer:Tornado@mix(hop 1, tx t2)"])[0]["breakdown"]
+    assert (br["penalty"] > 0) == bool(br["penalties_applied"]), br
 
 
 if __name__ == "__main__":

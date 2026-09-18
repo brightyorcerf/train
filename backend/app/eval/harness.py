@@ -12,12 +12,18 @@ Three rules this file exists to enforce:
 2. **Weights are frozen before the run** (scoring/weights.py, FROZEN_AT). The harness reads them; it
    never tunes them. If they are ever changed after seeing these results, that is train-on-test and
    must be reported as such.
-3. **Rank stability is the defensible number.** Each case is re-scored under perturbed weight
-   profiles (±20%, deterministic seeds) WITHOUT re-tracing, and we report in how many profiles the
-   #1 entity is unchanged. That answers "is this calibrated?" far better than the raw count.
+3. **Rank stability is the defensible number — but only where there is a ranking to disturb.**
+   Each case is re-scored under perturbed weight profiles (±20%, deterministic seeds) WITHOUT
+   re-tracing, and we report in how many profiles the #1 entity is unchanged. A case that reached
+   0 or 1 candidates CANNOT change its top-1 under any weights, so its "stable" count is
+   arithmetic, not evidence. The summary therefore prints how many cases have >= 2 candidates and
+   scopes the claim to those; reporting "160 of 160" without that denominator overstates it.
 
 A case that cannot be served from the store is reported as STORE_MISS — never silently re-fetched,
-and never counted as a pass.
+and never counted as a pass. The same applies to a case whose trace came back INCOMPLETE: a
+confuser that abstains because the data never arrived has not demonstrated abstention. Before this
+was enforced, `bitfinex-2016-unnamed-services` missed the store on its FIRST read, traced nothing,
+and still scored CORRECT because `recommended is None` — a pass on zero evidence.
 """
 import argparse
 import json
@@ -29,8 +35,14 @@ from pathlib import Path
 import yaml
 
 from app.attribution.engine import attribute_result
-from app.scoring.weights import FROZEN_AT, SEPARATION_TAU, WEIGHTS, perturb, weight_hash
-from app.trace.engine import Tracer
+from app.scoring.weights import (
+    FROZEN_AT,
+    MIN_CROWN,
+    SEPARATION_TAU,
+    perturb,
+    weight_hash,
+)
+from app.trace.engine import MAX_CALLS, Tracer
 
 REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])
 GOLDEN = REPO / "labels" / "golden_set.yaml"
@@ -58,7 +70,9 @@ def run_case(c: dict, offline=True, max_hops=5, fanout=5) -> dict:
     r = attribute_result(trace)
     return {"id": c["id"], "chain": chain, "expect": c["expect"], "expected_entity": c.get("expected_entity"),
             "state": r["state"], "recommended": r["recommended"], "ambiguous": r["ambiguous"],
+            "below_floor": r.get("below_floor", False),
             "ranked": [(v["entity"], v["score"]) for v in r["vasp_candidates"]],
+            "n_candidates": len(r["vasp_candidates"]),
             "hops": r["nearest"]["hops"] if r["nearest"] else None, "min_hops": c.get("min_hops"),
             "endpoint": r["nearest"]["endpoint"] if r["nearest"] else None,
             "expected_endpoint": c.get("endpoint"),
@@ -69,7 +83,7 @@ def run_case(c: dict, offline=True, max_hops=5, fanout=5) -> dict:
 
 def verdict(r: dict) -> str:
     """CORRECT / WRONG / ABSTAINED / MISSED — scored against what the case documents."""
-    if r["state"] in ("STORE_MISS", "ERROR"):
+    if r["state"] in ("STORE_MISS", "ERROR", "INCOMPLETE"):
         return r["state"]
     if r["expect"] == "UNATTRIBUTED":
         # a confuser: crowning anyone is the failure mode being tested
@@ -101,7 +115,8 @@ def main():
 
     rows = cases(tuple(x for x in a.cases.split(",") if x))
     print(f"golden set: {len(rows)} cases · weights {weight_hash()} FROZEN {FROZEN_AT} · "
-          f"tau {SEPARATION_TAU} · {'ONLINE' if a.online else 'OFFLINE (raw store only)'}\n")
+          f"tau {SEPARATION_TAU} · floor {MIN_CROWN} · "
+          f"{'ONLINE' if a.online else 'OFFLINE (raw store only)'}\n")
     out, t0 = [], time.time()
     for c in rows:
         r = run_case(c, offline=not a.online, max_hops=a.max_hops)
@@ -117,14 +132,20 @@ def main():
                   f"got {r['ranked']}")
         if r["state"] in ("STORE_MISS", "ERROR"):
             print(f"             {r.get('error')}")
+        if r["state"] == "INCOMPLETE":
+            print("             NOT SCORED — the trace is incomplete (a read this snapshot never "
+                  "stored). Abstention on missing data is not abstention on evidence.")
+            print(f"             {next((f for f in r['flags'] if f.startswith('partial:')), '')[:150]}")
 
-    scored = [r for r in out if r["state"] not in ("STORE_MISS", "ERROR")]
+    scored = [r for r in out if r["state"] not in ("STORE_MISS", "ERROR", "INCOMPLETE")]
     correct = [r for r in scored if r["verdict"] == "CORRECT"]
     discovery = [r for r in scored if r["expect"] == "ATTRIBUTED"]
     disc_ok = [r for r in discovery if r["verdict"] == "CORRECT"]
     st = [stability(r) for r in scored]
     stable = sum(s for s, _ in st)
     total_p = sum(n for _, n in st)
+    contested = [r for r in scored if len(r["ranked"]) >= 2]
+    c_st = [stability(r) for r in contested]
 
     print(f"\n{'=' * 78}")
     print(f"the correct VASP ranked #1 in {len(disc_ok)} of {len(discovery)} discovery cases")
@@ -134,6 +155,19 @@ def main():
               f"({'/'.join(sorted({r['state'] for r in out if r not in scored}))})")
     print(f"rank stability under +/-20% weight perturbation: top-1 unchanged in {stable} of {total_p} "
           f"case-profiles ({N_PROFILES} profiles x {len(scored)} cases)")
+    if contested:
+        print(f"  of which CONTESTED (>= 2 ranked candidates, so the ranking could actually move): "
+              f"{sum(s for s, _ in c_st)} of {sum(n for _, n in c_st)} case-profiles across "
+              f"{len(contested)} case(s)")
+    else:
+        print("  CONTESTED cases (>= 2 ranked candidates): 0 — every case reached at most one "
+              "candidate, so top-1 could not change under ANY weights. The stability count above "
+              "is true by construction and is NOT evidence of calibration. Add a golden case with "
+              "competing candidates before citing it.")
+    cliff = [r for r in scored if (r.get("calls") or 0) >= 0.95 * MAX_CALLS]
+    for r in cliff:
+        print(f"  ! {r['id']}: {r['calls']} calls against the {MAX_CALLS} budget — this case sits on "
+              f"the cliff edge; a small fan-out change flips it to UNATTRIBUTED")
     print(f"telemetry: {sum(r.get('calls', 0) for r in scored)} logical requests, "
           f"{sum(r.get('upstream', 0) for r in scored)} upstream, {time.time() - t0:.1f}s total")
     print("n is small — treat these as a held-out smoke test, not an accuracy figure. Never a percentage.")
