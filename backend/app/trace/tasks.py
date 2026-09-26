@@ -37,7 +37,7 @@ def open_case(wallet: str, chain: str, snapshot: int, label_set: str | None = No
     with connect() as c:
         row = c.execute("SELECT version FROM label_set ORDER BY created_at DESC LIMIT 1").fetchone()
         if not (label_set or row):
-            raise LookupError("no label set in Postgres — run `python -m app.labels.ingest` first "
+            raise LookupError("no label set in Postgres; run `python -m app.labels.ingest` first "
                               "(see README Quickstart)")
         ls = label_set or row[0]
         case_id, trace_id = str(uuid.uuid4()), str(uuid.uuid4())
@@ -89,9 +89,11 @@ def _index(chain, edges, txs, labels=None, entities=None) -> list[str]:
     So the failure is recorded as a `partial:` flag (the §8 convention the provider paths already
     use, which engine.result() turns into `partial: true`) and scripts/rebuild_graph.py repopulates
     the index afterward."""
-    g = None
+    global _GRAPH
     try:
-        g = Graph()
+        if _GRAPH is None:
+            _GRAPH = Graph()
+        g = _GRAPH
         if edges:
             g.merge_edges(chain, edges)
         if txs:
@@ -100,14 +102,26 @@ def _index(chain, edges, txs, labels=None, entities=None) -> list[str]:
             g.merge_labels(chain, labels, entities or {})
         return []
     except (DriverError, Neo4jError) as e:
+        _drop_graph()   # a broken driver must not be reused by this worker's next task
         return [f"partial:graph_index_unavailable ({len(edges)} edges, {len(txs)} txs, "
                 f"{len(labels or [])} labels): {type(e).__name__} {str(e)[:100]}"]
-    finally:
-        if g is not None:
-            try:
-                g.close()
-            except (DriverError, Neo4jError):
-                pass
+
+
+# One Neo4j driver per worker PROCESS, created lazily (so after Celery's fork, never inherited across
+# it). It used to be built and closed per frontier node, and that connect/close cycle was the whole
+# `graph` phase: 8.1s of worker time on a 4s collect_all trace. The driver is a connection pool and
+# is meant to be long-lived; a failed write drops it so the next task reconnects.
+_GRAPH: Graph | None = None
+
+
+def _drop_graph():
+    global _GRAPH
+    g, _GRAPH = _GRAPH, None
+    if g is not None:
+        try:
+            g.close()
+        except (DriverError, Neo4jError):
+            pass
 
 
 STALL_AFTER_S = 600      # the console gives up at 600s too; past that a job is not "running"
@@ -125,7 +139,7 @@ def sweep_stalled(trace_id=None) -> int:
         return c.execute(
             "UPDATE trace_jobs SET state = 'FAILED', finished_at = now(), "
             "error = coalesce(error, 'stalled: no terminal state after "
-            f"{STALL_AFTER_S}s — worker lost mid-trace (see the worker log); re-run the case') "
+            f"{STALL_AFTER_S}s; worker lost mid-trace (see the worker log); re-run the case') "
             "WHERE state IN ('QUEUED','FETCHING','SCORING') "
             f"AND coalesce(started_at, now()) < now() - interval '{STALL_AFTER_S} seconds'"
             + (" AND id = %s" if trace_id else ""),
@@ -149,10 +163,8 @@ def expand_task(self, ctx: dict, node: dict) -> dict:
         r = t.expand_node(node)
     conn = connect(autocommit=True)
     try:
-        # "graph" covers BOTH stores plus per-node Neo4j driver setup: save_edges/save_txs into
-        # Postgres (the system of record) and the Graph() connect -> MERGE -> close cycle. The
-        # driver init is per frontier node, so this phase dominates the breakdown; that is the
-        # cost of the derived index, not of the graph writes alone.
+        # "graph" covers BOTH stores: the batched edge upsert into Postgres (the system of record)
+        # and the MERGE into the Neo4j index over this worker's long-lived driver (_index).
         with ph.phase("graph"):
             save_edges(conn, ctx["chain"], r["edges"], ctx["trace_id"], node["hop"])
             save_txs(conn, ctx["chain"], r["txs"])
@@ -174,7 +186,14 @@ def expand_task(self, ctx: dict, node: dict) -> dict:
             # `evidence` stayed empty, propagation ran against a bare registry, and the next hop
             # could not see a deposit address the previous hop had just proven.
             "labels": [vars(l) for labs in t.reg.labels.values() for l in labs],
-            "phases": ph.as_dict()}
+            "phases": ph.as_dict(), "requests": t.prov.requests, "memo": _memo_keys(t.prov)}
+
+
+def _memo_keys(prov) -> list[str]:
+    """Request keys this provider can now answer without counting a call, in `requests` spelling."""
+    if hasattr(prov, "_cache"):                       # esplora memoizes by path
+        return [f"esplora:{k}" for k in prov._cache]
+    return [k for k in getattr(prov, "_memo", {}) if isinstance(k, str)]
 
 
 @app.task(queue="trace")
@@ -182,13 +201,8 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     """Chord callback: merge one hop's results, decide the next frontier, recurse or finish."""
     t = _tracer(ctx, state.get("labels"))
     hop = state["hop"]
-    state["calls"] += sum(r["calls"] for r in results)
     state["upstream"] += sum(r["upstream"] for r in results)
     state["store_hits"] += sum(r.get("store_hits", 0) for r in results)
-    for r in results:                     # rehydrate the overlay this level's workers derived
-        for d in r.get("labels") or []:
-            t.reg.add_label(Label(**d))
-    state["labels"] = [vars(l) for labs in t.reg.labels.values() for l in labs]
     state["stale"] += [s for r in results for s in r["stale"]]
     # §16: each worker timed its own phases; sum them across the level. The sum is work done, not
     # elapsed time (the tasks ran in parallel) — timeline.summarize() states that in its response.
@@ -198,7 +212,24 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
     state["phases"] = ph.as_dict()
     nodes = {n["addr"]: n for n in state["nodes"]}
     nxt = []
+    # BUDGET ACCOUNTING MIRRORS THE SEQUENTIAL DRIVER (engine.Tracer.run), which the eval harness
+    # scores. There, one provider memo lives for the whole trace and the budget is checked before each
+    # node, in address order. Here every task starts with a cold memo, so its raw `calls` re-count
+    # reads an earlier node already made, and stamping hits with the level-END total dropped hits the
+    # sequential run keeps: Li Jiadong crowned Binance live while the harness correctly saw Bitfinex
+    # 6 points behind and abstained (2026-09-26). So: walk results in the same order, count only
+    # reads the trace-wide memo has not seen, stop taking nodes once the budget is spent, and stamp
+    # each hit with the running count at that node. Parallel fetch, sequential bookkeeping.
+    memo = set(state.get("memo") or [])
     for r in sorted(results, key=lambda r: r["node"]["addr"]):
+        if state["calls"] >= MAX_CALLS:
+            break                                     # the sequential run never expands this node
+        reqs = r.get("requests")
+        state["calls"] += r["calls"] if reqs is None else sum(q not in memo for q in reqs)
+        memo.update(r.get("memo") or [])
+        for d in r.get("labels") or []:               # rehydrate what this node's worker derived
+            t.reg.add_label(Label(**d))
+        t.prov.calls = state["calls"]                 # child hits in absorb() stamp this count
         state["flags"] += r["flags"]
         state["so_edges"] += r["so_edges"]
         if r["evidence"]:
@@ -207,21 +238,19 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
             state["hits"].append({**r["hit"], "calls_at_hit": state["calls"]})
         if not r["stop"]:
             nxt += t.absorb(r["moves"], r["node"], hop, nodes, state["hits"], state["flags"])
+    state["memo"] = sorted(memo)
+    state["labels"] = [vars(l) for labs in t.reg.labels.values() for l in labs]
     for h in state["hits"]:
         h.setdefault("calls_at_hit", state["calls"])
     propagate(t.reg, ctx["chain"], [SameOwner(*e) for e in state["so_edges"]])   # adds to the overlay
     state["nodes"] = list(nodes.values())
 
     # §10 wants EVERY reachable endpoint ranked, and the eval harness measures exactly that
-    # (collect_all=True). This driver stops at the first hop level that produced a hit, so the
-    # ranking sees a subset — the shipped algorithm and the evaluated one are NOT the same, and
-    # that divergence is recorded in reportscratchpad.md (F12) rather than papered over.
-    #
-    # Why it is not simply flipped on: one chord task per frontier node re-creates a Tracer, a
-    # PgRegistry (entities loaded per task), a store connection and a limiter, so the per-node
-    # overhead dominates. Measured on this host: Case B with collect_all took 1901s versus ~3s
-    # stopping at the first hit — past the console's own 600s ceiling. Fixing the per-task setup
-    # cost is the prerequisite for turning this on by default.
+    # (collect_all=True). The API now defaults to it, so the shipped algorithm and the evaluated one
+    # are the same (closes reportscratchpad.md F12). It used to be off because per-task setup made a
+    # full walk take 1901s on Case B; with the entity-row cache, one Neo4j driver per worker and
+    # batched edge upserts, all 8 golden cases walk in full in 2.2-6.4s warm (measured 2026-09-26).
+    # The first-hit stop stays available as collect_all=False.
     first_hit_stop = bool(state["hits"]) and not ctx.get("collect_all", False)
     done = first_hit_stop or not nxt or hop >= ctx["max_hops"] or state["calls"] >= MAX_CALLS
     if not done:

@@ -38,11 +38,11 @@ def verify(trace_id: str) -> int:
           f"{pins.get('weight_hash')} · {pins.get('adapter_version')}")
     print(f"audit   {raw} upstream read(s) recorded for this trace")
     print(f"render  {digest}")
-    print(f"re-render {'matches' if again == digest else 'DIFFERS — rendering is not deterministic'}")
+    print(f"re-render {'matches' if again == digest else 'DIFFERS: rendering is not deterministic'}")
     if again != digest:
         return 1
     if not rows:
-        print("filed   no report row for this case yet — nothing to compare against "
+        print("filed   no report row for this case yet; nothing to compare against "
               "(GET /report/{id} files one)")
         return 3
     match = [h for h, *_ in rows if h == digest]
@@ -50,9 +50,9 @@ def verify(trace_id: str) -> int:
         mark = "OK  " if h == digest else "DIFF"
         print(f"filed   {mark} {h[:32]}… {str(at)[:19]} (adapter {adapter}, weights {wh})")
     if match:
-        print("VERIFIED — the filed report reproduces from the stored result and the pinned label set")
+        print("VERIFIED: the filed report reproduces from the stored result and the pinned label set")
         return 0
-    print("MISMATCH — the re-render does not match any filed hash for this case. Either the stored "
+    print("MISMATCH: the re-render does not match any filed hash for this case. Either the stored "
           "result, the pinned label set or the report template changed since it was filed.")
     return 1
 

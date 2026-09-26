@@ -2,6 +2,7 @@
 # snapshot BTC block 966553, scripts/day1_verify.py --max-hops 5). Weights are NOT tuned on these.
 # expect: ATTRIBUTED (discovery) | UNATTRIBUTED (honest non-answer / confuser that must not be crowned)
 - id: polyanin-revil-binance
+  title: Yevgeniy Polyanin · REvil ransomware
   suspect_addr: 3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD
   chain: btc
   expect: ATTRIBUTED
@@ -10,24 +11,27 @@
   endpoint: 17wFjwRyvqyLt8dPPU2mzwpS7fE2VnARKE   # sweep_proven
   source_doc: https://home.treasury.gov/news/press-releases/jy0471
 - id: zhdanova-binance
+  title: Ekaterina Zhdanova · sanctions-evasion laundering
   suspect_addr: 1Ljk8RNNabkZ9bfDYQBn98XfFozJhTjqcZ
   chain: btc
   expect: ATTRIBUTED
   expected_entity: binance
-  min_hops: 1          # shallow — validates known-OFAC flow, not discovery
+  min_hops: 1          # shallow; validates known-OFAC flow, not discovery
   endpoint: 1KNvwHuZ1wmdyzJHnbPDkdgnFXbAxUGvHP
   source_doc: https://home.treasury.gov/news/press-releases/jy1874
 - id: lijiadong-lazarus-binance
+  title: Li Jiadong · Lazarus Group laundering
   suspect_addr: 1EfMVkxQQuZfBdocpJu6RUsCJvenQWbQyE
   chain: btc
   expect: ATTRIBUTED
   expected_entity: binance
   min_hops: 3
   endpoint: 18QHggCdfXfZXQR2aw6Whxz8FiSucanQrg
-  caveat: hops 1-2 are 8-in/19-out and 14-in/20-out batch txs from a 492-receipt address — may be a pass-through via
+  caveat: hops 1-2 are 8-in/19-out and 14-in/20-out batch txs from a 492-receipt address; may be a pass-through via
     an exchange hot wallet (below the 1,000-receipt hub threshold). Verify before crowning.
   source_doc: OFAC SDN 2020-03-02 (Tian Yinyin / Li Jiadong, Lazarus laundering)
 - id: potekhin-karasavidi-bitfinex
+  title: Potekhin & Karasavidi · exchange phishing
   suspect_addr: '0x7F367cC41522cE07553e823bf3be79A889DEbe1B'
   chain: eth
   until_block: 25906777
@@ -38,20 +42,21 @@
   verified: >
     2026-09-12 hand-walked against Etherscan (day 7a). All three hops are plain ETH value
     transfers, status 1, input 0x, no logs (1756.99 -> 5845.38 -> 7112.71 ETH); both intermediates
-    (0x2718752b…, 0x6f6394dc…) are unlabeled EOAs with 8 and 3 lifetime movements — no hub, mixer or
+    (0x2718752b…, 0x6f6394dc…) are unlabeled EOAs with 8 and 3 lifetime movements; no hub, mixer or
     DEX on the path. The endpoint sends 100% of all 11 of its ETH spends to Bitfinex hot wallet
     0x876eabf441b2ee5b5b0554fd502a8e0600950cfa (labeled from bitfinexcom/pub/wallets.txt), and
     received from 11 distinct senders before the sweep.
   caveat: >
     the endpoint is ITSELF OFAC-listed (Karasavidi Dmitrii, same 2020-09-16 designation as the
     suspect Potekhin). Treasury says he "laundered the proceeds of the attacks into an account in his
-    name" and that the funds "was traced to Karasavidi's account" — consistent with a personal deposit
+    name" and that the funds "was traced to Karasavidi's account"; consistent with a personal deposit
     address at an exchange, but Treasury never names Bitfinex. The exchange identity rests on
     Bitfinex's published hot-wallet list + the sweep behaviour, NOT on the government document.
     Separately: the endpoint trips the truncated/hub flag, but 4,972 of its 4,996 txlist rows are
     zero-value address-poisoning spam and only 24 are real value transfers (hub rule counts raw rows).
   source_doc: https://home.treasury.gov/news/press-releases/sm1123
 - id: wuhuihui-binance
+  title: Wu Huihui · DPRK OTC trader
   suspect_addr: 12w6v1qAaBc4W8h8C2Cu5SKFaKDSv3erUW
   chain: btc
   expect: ATTRIBUTED
@@ -62,12 +67,12 @@
     2026-09-12 hand-walked from the raw store (0 upstream calls). Hop 1 (bc4b0754) is a
     single-input spend BY the suspect: 4.7850 BTC in, paying 4.2272 to 1Gog6U87… plus 0.5578
     change. Hop 2 (5ee42bd3) spends that same 4.2272 UTXO unsplit as one of 13 inputs
-    (10 distinct addresses, 54.8066 BTC total) and pays 50.0 BTC to the deposit address —
+    (10 distinct addresses, 54.8066 BTC total) and pays 50.0 BTC to the deposit address -
     1Gog6U87… is provably an input, so the suspect's coin is inside the deposit. Every input is
     4.18-4.27 BTC, i.e. a uniform consolidation batch rather than arbitrary pooling. annotate()
     reports no coinjoin and no change output on hop 2. The endpoint then sweeps 100.0% of
     tx d4e0c06b to labeled Binance hot wallet 1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s; sweep "proven".
-    The intermediate is 69 funded / 68 spent txos — busy, but far below the 1,000-receipt hub bar.
+    The intermediate is 69 funded / 68 spent txos; busy, but far below the 1,000-receipt hub bar.
   caveat: >
     the suspect is NOT itself an input to the hop-2 deposit tx, and that tx aggregates 13 inputs,
     so the suspect funds only ~7.7% of the 50 BTC that lands at Binance. The claim this case
@@ -76,18 +81,20 @@
     so 27 is a floor, not a count.
   source_doc: OFAC SDN sdn_advanced.xml, listed 2023-04-24, individual:DPRK3 (Wu Huihui)
 - id: hydramarket-coinjoin-confuser
+  title: Hydra Market · darknet marketplace
   suspect_addr: 123WBUDmSJv4GctdVEz6Qq6z8nXSKrJ4KX
   chain: btc
   expect: UNATTRIBUTED
   why: hop 3 reaches four separate equal-output CoinJoins (42/60/40/46 outputs of ~0.10994 BTC from
-    64/86/51/64 distinct input addresses) — 1:1 value linkage is broken by construction. Distinct
+    64/86/51/64 distinct input addresses); 1:1 value linkage is broken by construction. Distinct
     boundary type from the andreyev service-hub confuser.
   verified: >
     2026-09-12 replayed offline at the engine ceiling (--max-hops 5; 6 is capped to HARD_MAX_HOPS).
-    Terminates UNATTRIBUTED with reason "no further outgoing value" — a genuine dead end, NOT
+    Terminates UNATTRIBUTED with reason "no further outgoing value"; a genuine dead end, NOT
     "hop budget exhausted", so no attribution is being masked by the budget. 0 upstream calls.
   source_doc: OFAC SDN sdn_advanced.xml, listed 2022-04-05, entity:CYBER2 (Hydra Market)
 - id: andreyev-hub-confuser
+  title: Anton Andreyev · IRA-linked actor
   suspect_addr: 1AeSq93WDNdLoEJ92sex7T8xQZoYYm8BtS
   chain: btc
   expect: UNATTRIBUTED
@@ -95,6 +102,7 @@
     pass-through (the pre-hub-policy engine wrongly crowned Binance at 3 hops)
   source_doc: OFAC SDN 2020-09-10 (Andreyev Anton Nikolaeyvich)
 - id: bitfinex-2016-unnamed-services
+  title: Bitfinex 2016 hack proceeds
   suspect_addr: 1HpaHr2pQmVPuFWwNKm7hqjndQPMULNYz5
   chain: btc
   until_block: 719000   # before the 2022-02-01 government seizure

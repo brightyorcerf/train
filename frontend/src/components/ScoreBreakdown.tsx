@@ -54,7 +54,7 @@ export function ScoreBreakdown({ r }: { r: TraceResult }) {
 
   return (
     <div className="panel">
-      <h2>Score breakdown — {top.entity_name ?? top.entity}</h2>
+      <h2>Score breakdown: {top.entity_name ?? top.entity}</h2>
       <table>
         <thead>
           <tr><th>factor</th><th>value</th><th>weight</th><th>contribution</th><th style={{ width: 210 }}>perturb ±20%</th></tr>
@@ -101,7 +101,7 @@ export function ScoreBreakdown({ r }: { r: TraceResult }) {
           <span>
             <span className="dim">perturbed </span>
             <b className={`mono ${out.ranked[0]?.score === top.score ? '' : 'amber'}`}>
-              {out.ranked.find((x) => x.entity === top.entity)?.score ?? '—'}
+              {out.ranked.find((x) => x.entity === top.entity)?.score ?? 'n/a'}
             </b><span className="dim"> / 100</span>
           </span>
         )}
@@ -146,12 +146,8 @@ export function ScoreBreakdown({ r }: { r: TraceResult }) {
       {err && <div className="note err">{err}</div>}
 
       <div className="note">
-        Each profile jitters every weight by up to ±20% and renormalizes to 1 — the same operation
-        the eval harness runs (it uses 20 profiles per case), executed here by the same backend
-        function, so the control on screen and the shipped number are one test rather than two.
-        With a single candidate the ranking cannot move whatever the weights do, so this control
-        only evidences stability on a case that reached two or more candidates. The frozen profile is never
-        modified: this is a what-if over a stored trace, which is why it costs zero provider calls.
+        Sliders re-rank this stored trace on the backend, through the same function the eval harness
+        runs. No second copy of the arithmetic, zero provider calls, frozen weights untouched.
       </div>
     </div>
   )

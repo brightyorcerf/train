@@ -136,7 +136,7 @@ class PgRegistry(Registry):
                                                           "ORDER BY created_at DESC LIMIT 1"),
             (version,) if version else ()).fetchone()
         if not row:
-            raise LookupError(f"label set {version or '(any)'} not in Postgres — run python -m app.labels.ingest")
+            raise LookupError(f"label set {version or '(any)'} not in Postgres; run python -m app.labels.ingest")
         self.version, self.n_labels = row
         rows = _ENTITY_ROWS.get(self.version)
         if rows is None:

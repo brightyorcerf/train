@@ -123,7 +123,7 @@ class EsploraProvider(BlockchainProvider):
             errs.append(f"{base}: HTTP {r.status_code} {r.text[:80]}")
             if r.status_code == 429 or r.status_code >= 500:
                 self._trip(base)
-        raise ProviderError(f"GET {path} failed on every provider — {' | '.join(errs) or 'all tripped'}")
+        raise ProviderError(f"GET {path} failed on every provider; {' | '.join(errs) or 'all tripped'}")
 
     def _trip(self, base: str) -> None:
         self.down_until[base] = time.time() + self.cooldown

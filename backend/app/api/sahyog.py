@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.labels.registry import PgRegistry
 
-SCHEMA_NOTE = ("ILLUSTRATIVE schema — the real SAHYOG payload is non-public and conformable under "
+SCHEMA_NOTE = ("ILLUSTRATIVE schema; the real SAHYOG payload is non-public and conformable under "
                "an MoU. This mock is a documented contract, never a live integration.")
 LEGAL_BASIS = "BNSS S.94 + IT Act S.79(3)(b)"
 
@@ -41,7 +41,7 @@ def onboarding(entity_id: str, reg: PgRegistry | None = None) -> dict:
         "jurisdiction": list(ent.jurisdiction) if ent else [],
         "routable_via_sahyog": confirmed,
         "route": (f"SAHYOG portal ({LEGAL_BASIS})" if confirmed else
-                  "NOT on the SAHYOG portal in our label set — route by MLAT / direct legal "
+                  "NOT on the SAHYOG portal in our label set; route by MLAT / direct legal "
                   "process to the VASP's jurisdiction, or confirm onboarding out of band"),
     }
 
@@ -56,7 +56,7 @@ def disclosure_payload(result: dict, case_reference: str | None = None,
         return {"schema_note": SCHEMA_NOTE, "legal_basis": LEGAL_BASIS, "target_vasp": None,
                 "routable_via_sahyog": False,
                 "route": "no disclosure request: the engine did not crown a target "
-                         f"({result.get('state', 'UNATTRIBUTED')}) — {result.get('rationale', '')}",
+                         f"({result.get('state', 'UNATTRIBUTED')}); {result.get('rationale', '')}",
                 "suspect_addresses": [result["wallet"]] if result.get("wallet") else [],
                 "transaction_hashes": [], "deposit_events": [], "provenance": []}
 

@@ -8,7 +8,7 @@ export function NearestPanel({ r }: { r: TraceResult }) {
   const n = r.nearest
   return (
     <div className="panel">
-      <h2>Nearest endpoint — proximity, not confidence</h2>
+      <h2>Nearest endpoint: proximity, not confidence</h2>
       {!n ? (
         <div className="dim">No endpoint reached.</div>
       ) : (
@@ -52,8 +52,7 @@ export function NearestPanel({ r }: { r: TraceResult }) {
             </table>
           </div>
           <div className="note">
-            Fewest hops ≠ highest confidence. This panel answers "how close", the leaderboard
-            answers "how well evidenced" — they can disagree, and that disagreement is informative.
+            How close, not how well evidenced. That is the leaderboard's job, and the two can disagree.
           </div>
         </>
       )}

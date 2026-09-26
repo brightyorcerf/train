@@ -128,12 +128,12 @@ def build_html(result: dict, hashes: list[dict] | None = None, reg: PgRegistry |
     disclosure = sahyog_mock.disclosure_payload(result, None, reg)
 
     if rec and top:
-        verdict = (f'<div class="crown"><div class="big">{e(top.get("entity_name") or rec)} — '
+        verdict = (f'<div class="crown"><div class="big">{e(top.get("entity_name") or rec)} · '
                    f'{top["score"]} / 100 confidence index</div>'
                    f'<div class="note">{e(result.get("rationale") or "")}</div></div>')
     else:
         verdict = (f'<div class="crown" style="background:#f6f6f6;border-color:#999">'
-                   f'<div class="big">No target crowned — {e(result.get("state", "UNATTRIBUTED"))}</div>'
+                   f'<div class="big">No target crowned: {e(result.get("state", "UNATTRIBUTED"))}</div>'
                    f'<div class="note">{e(result.get("rationale") or result.get("reason") or "")}'
                    f' Abstention is a result: the engine refuses to name a VASP on absence of '
                    f'evidence.</div></div>')
@@ -158,13 +158,13 @@ def build_html(result: dict, hashes: list[dict] | None = None, reg: PgRegistry |
                    f'<span class="mono">{e(p.get("endpoint") or "")}</span>',
                    e(str(p.get("role_basis") or "not recorded")), p.get("hops"),
                    p.get("confidence_index"),
-                   f'<span class="mono">{e((p.get("deposit_event") or {}).get("tx") or "—")}</span>')
+                   f'<span class="mono">{e((p.get("deposit_event") or {}).get("tx") or "-")}</span>')
                   for p in sahyog_mock.provenance(result)]) or ""
 
     sweeps = "".join(
         f'<div class="note" style="margin-bottom:2mm">'
         f'<b>{e(s.get("entity", ""))}</b> deposit <span class="mono">{e(s.get("address", ""))}</span> '
-        f'— sweep {e(str(s.get("sweep")))}, {s.get("distinct_senders")} distinct senders, '
+        f'- sweep {e(str(s.get("sweep")))}, {s.get("distinct_senders")} distinct senders, '
         f'{round(float(s.get("share", 0)) * 100, 2)}% of sweep tx '
         f'<span class="mono">{e(str(s.get("sweep_tx", ""))[:24])}…</span> → hot wallet '
         f'<span class="mono">{e(str(s.get("hot_wallet", "")))}</span><br>'
@@ -185,7 +185,7 @@ def build_html(result: dict, hashes: list[dict] | None = None, reg: PgRegistry |
             f'<b>{e(r["target_vasp_name"])}</b> <span class="note">({e(r["which"])}, '
             f'sahyog: {e(r["target_vasp_sahyog"])}, jurisdiction: '
             f'{e(", ".join(r["jurisdiction"]) or "unrecorded")})</span><br>'
-            f'{"ROUTABLE — " if on else "NOT ROUTABLE — "}{e(r["route"])}</div>')
+            f'{"ROUTABLE: " if on else "NOT ROUTABLE: "}{e(r["route"])}</div>')
 
     flags = "".join(f'<div class="note mono">{e(f)}</div>' for f in result.get("flags", [])[:6])
 
@@ -210,15 +210,15 @@ legal chain of custody; production custody is named as future work.</div>
 
 <h2>Ranked candidates</h2>
 {lead}
-<div class="note">{_separation_line(result)} Confidence is an INDEX out of 100 — not a probability,
+<div class="note">{_separation_line(result)} Confidence is an INDEX out of 100, not a probability,
 not a percentage, and not a claim of ownership.</div>
 
-<h2>Nearest endpoint — proximity, a separate claim (§3)</h2>
+<h2>Nearest endpoint: proximity, a separate claim (§3)</h2>
 <div class="note">hops {near.get("hops")} · role basis {e(str(near.get("role_basis") or "not recorded"))}
-· endpoint <span class="mono">{e(str(near.get("endpoint") or "—"))}</span>
+· endpoint <span class="mono">{e(str(near.get("endpoint") or "-"))}</span>
 {f' · deposit tx <span class="mono">{e(dep["tx"])}</span> ({dep.get("amount_btc") or dep.get("amount")})' if dep else ""}
 <br>Fewest hops is not highest confidence. Value at the endpoint is the amount that landed there,
-not the suspect's own share — a deposit transaction can aggregate many senders.</div>
+not the suspect's own share; a deposit transaction can aggregate many senders.</div>
 
 <h2>Score breakdown</h2>
 {factors}{pen}
@@ -230,7 +230,7 @@ not the suspect's own share — a deposit transaction can aggregate many senders
 <h2>Provider response hashes</h2>
 {hrows}
 
-<h2>Routing (§17) — both branches</h2>
+<h2>Routing (§17): both branches</h2>
 {route_html}
 <div class="note">{e(sahyog_mock.SCHEMA_NOTE)} Legal basis {e(sahyog_mock.LEGAL_BASIS)}.
 The documented contract is the deliverable; this tool has never transmitted anything to SAHYOG or

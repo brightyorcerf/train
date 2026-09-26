@@ -18,8 +18,8 @@ export function CaseList({ rows, selected, onSelect }: {
 }) {
   return (
     <div className="panel">
-      <h2>Cases ({rows.length})</h2>
-      <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+      <h2>{rows.length} traced wallets <span className="dim">· click to open its report</span></h2>
+      <div style={{ maxHeight: 360, overflowY: 'auto' }}>
         <table>
           <thead>
             <tr><th>wallet</th><th>chain</th><th>state</th><th>target</th><th>block</th></tr>
@@ -32,7 +32,7 @@ export function CaseList({ rows, selected, onSelect }: {
                 <td className="mono trunc">{short(c.wallet)}</td>
                 <td className="dim">{c.chain}</td>
                 <td>{stateTag(c)}</td>
-                <td className={c.recommended ? 'gold' : 'dim'}>{c.recommended ?? '—'}</td>
+                <td className={c.recommended ? 'gold' : 'dim'}>{c.recommended ?? 'none'}</td>
                 <td className="mono dim">{c.snapshot_block}</td>
               </tr>
             ))}

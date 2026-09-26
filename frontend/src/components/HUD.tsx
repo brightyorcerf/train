@@ -9,20 +9,20 @@ export function HUD({ r, elapsed, running }: { r: TraceResult | null; elapsed: n
     <div className="hud">
       <span>
         <span className="dim">elapsed </span>
-        <b className="cyan">{elapsed != null ? `${elapsed.toFixed(1)}s` : '—'}</b>
+        <b className="cyan">{elapsed != null ? `${elapsed.toFixed(1)}s` : 'n/a'}</b>
         {elapsed == null && r && <span className="dim"> (cached run)</span>}
         {running && <span className="amber"> ● live</span>}
       </span>
       <span>
         <span className="dim">api calls </span>
-        <b className="cyan">{r ? r.api_calls : '—'}</b>
+        <b className="cyan">{r ? r.api_calls : 'n/a'}</b>
         <span className="dim"> logical · </span>
-        <b className={r && r.upstream_calls === 0 ? 'green' : 'amber'}>{r ? r.upstream_calls : '—'}</b>
+        <b className={r && r.upstream_calls === 0 ? 'green' : 'amber'}>{r ? r.upstream_calls : 'n/a'}</b>
         <span className="dim"> upstream</span>
       </span>
       <span>
         <span className="dim">worker time </span>
-        <b>{phaseTotal != null ? `${phaseTotal.toFixed(1)}s` : '—'}</b>
+        <b>{phaseTotal != null ? `${phaseTotal.toFixed(1)}s` : 'n/a'}</b>
       </span>
       <span>
         <span className="dim">cost </span>
@@ -31,11 +31,11 @@ export function HUD({ r, elapsed, running }: { r: TraceResult | null; elapsed: n
       </span>
       {r?.partial && (
         <span className="tag amber" title={r.flags.filter((f) => f.startsWith('partial:')).join('\n')}>
-          partial — degraded source, result stands on Postgres
+          partial: degraded source, result stands on Postgres
         </span>
       )}
       {r && (
-        <span className="dim mono" style={{ marginLeft: 'auto', fontSize: 12 }}>
+        <span className="pins">
           block {r.pins.snapshot_block} · {r.pins.label_set_version} · {r.pins.weight_hash}
         </span>
       )}

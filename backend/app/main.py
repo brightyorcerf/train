@@ -12,13 +12,16 @@ and `dispatch` controls whether creation also starts the trace.
 this container, so `reports` records the PDF's content hash instead of a path to a file nobody
 outside the container could fetch.
 """
+import json
 import math
 import re
+import time
 import uuid
 from contextlib import asynccontextmanager
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api import sahyog as sahyog_mock
@@ -27,12 +30,13 @@ from app.api.report import response_hashes as _response_hashes
 from app.api.timeline import summarize
 from app.attribution.convergence import converge
 from app.attribution.engine import attribute_result
+from app.attribution.techniques import detect as detect_techniques
 from app.db import connect, init_schema
 from app.labels.registry import PgRegistry, valid_address
 from app.scoring.engine import score_candidate
 from app.scoring.weights import WEIGHTS, perturb, weight_hash
 from app.trace.engine import HARD_MAX_HOPS, Tracer
-from app.trace.tasks import dispatch_trace, job, open_case, sweep_stalled
+from app.trace.tasks import STALL_AFTER_S, dispatch_trace, job, open_case, sweep_stalled
 
 
 @asynccontextmanager
@@ -61,13 +65,14 @@ class CaseRequest(BaseModel):
     wallets: list[str] = Field(min_length=1, max_length=10)
     chain: str
     snapshot_block: int | None = Field(default=None, ge=0)  # None -> pin the tip (§12: always pinned)
-    max_hops: int = Field(default=4, ge=1, le=HARD_MAX_HOPS)
+    max_hops: int = Field(default=HARD_MAX_HOPS, ge=1, le=HARD_MAX_HOPS)   # = the harness walk
     fanout: int = Field(default=5, ge=1, le=50)
     graph: bool = True                    # convergence needs the subgraphs persisted
     dispatch: bool = True                 # False -> §14 shape: create the case, trace later
-    # §10 wants every reachable endpoint ranked. Off by default because the chord driver pays a
-    # per-node setup cost that makes a full walk minutes long on this hardware (see tasks.py).
-    collect_all: bool = False
+    # §10 wants every reachable endpoint ranked — the same walk the eval harness scores. On by
+    # default since per-task setup stopped dominating (trace/tasks.py level_done); False restores
+    # the stop-at-first-hit driver.
+    collect_all: bool = True
     force: bool = False                   # re-run a wallet already traced at this snapshot
 
     @field_validator("wallets", mode="after")
@@ -152,7 +157,7 @@ def create_case(req: CaseRequest, response: Response):
             if row:
                 cases.append({"wallet": w, "case_id": row[0], "trace_id": row[1], "pins": row[2],
                               "state": row[3], "reused": True,
-                              "note": "existing case at this snapshot — not re-traced "
+                              "note": "existing case at this snapshot; not re-traced "
                                       "(§12 idempotency; pass force=true to re-run)"})
                 continue
         case_id, trace_id, pins = open_case(w, req.chain, snapshot, None, "api", params)
@@ -204,7 +209,7 @@ def start(req: TraceRequest):
     wallet, chain, snapshot, params, trace_id, state, pins = row
     if state != "QUEUED":
         return {"case_id": str(req.case_id), "trace_id": str(trace_id), "state": state,
-                "note": "already dispatched — not re-run (§12 idempotency)"}
+                "note": "already dispatched; not re-run (§12 idempotency)"}
     params = params or {}
     return dispatch_trace(str(req.case_id), str(trace_id), pins, wallet, chain, snapshot,
                           params.get("max_hops", 4), params.get("fanout", 5), graph=True)
@@ -256,7 +261,7 @@ def wallet_score(address: str, chain: str = "btc"):
     if not lab:
         return {"address": address, "chain": chain, "label_set_version": reg.version,
                 "score": None, "breakdown": None,
-                "note": "no label in the pinned set — absence of a label is not evidence of anything"}
+                "note": "no label in the pinned set; absence of a label is not evidence of anything"}
     ent = reg.entities.get(lab.entity)
     cand = {"role": lab.role, "basis": lab.basis, "tier": lab.source, "value": 0.0,
             "asset": chain.upper(), "ts": [], "path": []}
@@ -321,7 +326,7 @@ def rescore(trace_id: UUID, req: RescoreRequest):
             "separation": alt["separation"], "separation_pts": alt["separation_pts"],
             "ranked": ranked, "base_ranked": base_order,
             "rank_unchanged": [c["entity"] for c in alt["vasp_candidates"]] == base_order,
-            "note": "what-if only — the case stays pinned to the frozen profile (§11.1)."}
+            "note": "what-if only: the case stays pinned to the frozen profile (§11.1)."}
 
 
 # ---------- the graph surface (§13 GraphView) ----------
@@ -340,6 +345,34 @@ def _boundaries(flags: list[str]) -> dict[str, dict]:
             out[m.group("addr").strip()] = {"kind": f.split(":", 1)[0], "name": m.group("name").strip(),
                                             "hop": int(m.group("hop")), "detail": f}
     return out
+
+
+# Edges of the txs named in `%s` (the ranked candidates' paths) sort first, so the render cap can
+# never cut the path the verdict rests on: Li Jiadong has >1200 edges at hop 0 alone, and the old
+# hop-ordered LIMIT returned only those — the attributed hops 1-3 never reached the screen.
+_EDGE_SQL = ("SELECT te.hop, e.chain, e.kind, e.src, e.dst, e.value, e.decimals, e.asset, e.tx_hash, e.id "
+             "FROM trace_edge te JOIN edge e ON e.id = te.edge_id WHERE te.trace_id = %s "
+             "ORDER BY e.tx_hash = ANY(%s) DESC, te.hop, e.id LIMIT %s")
+
+
+def _shape(rows, nodes: dict, edges: list) -> None:
+    """trace_edge rows -> graph nodes/edges, in place. One reading for /graph and /stream, so the live
+    view and the final view cannot disagree about what a hypernode is."""
+    for hop, ch, kind, src, dst, value, dec, asset, tx, _id in rows:
+        amount = float(value) / 10 ** (dec or 0)
+        if kind in ("funds", "credits"):          # BTC: the tx is a node, not an edge
+            addr, txid = (src, tx) if kind == "funds" else (dst, tx)
+            nodes.setdefault(f"tx:{txid}", {"id": f"tx:{txid}", "kind": "tx", "label": txid[:10],
+                                            "hop": hop, "chain": ch})
+            nodes.setdefault(addr, {"id": addr, "kind": "address", "hop": hop, "chain": ch})
+            a, b = (addr, f"tx:{txid}") if kind == "funds" else (f"tx:{txid}", addr)
+            edges.append({"source": a, "target": b, "kind": kind, "amount": round(amount, 8),
+                          "asset": asset, "tx": txid, "hop": hop})
+        else:
+            for a in (src, dst):
+                nodes.setdefault(a, {"id": a, "kind": "address", "hop": hop, "chain": ch})
+            edges.append({"source": src, "target": dst, "kind": kind, "amount": round(amount, 8),
+                          "asset": asset, "tx": tx, "hop": hop})
 
 
 @app.get("/trace/{trace_id}/graph")
@@ -372,29 +405,14 @@ def trace_graph(trace_id: UUID, limit: int = Query(1200, ge=1, le=20000)):
     nodes: dict[str, dict] = {}
     edges = []
     with connect() as c:
-        rows = c.execute(
-            "SELECT te.hop, e.chain, e.kind, e.src, e.dst, e.value, e.decimals, e.asset, e.tx_hash "
-            "FROM trace_edge te JOIN edge e ON e.id = te.edge_id WHERE te.trace_id = %s "
-            "ORDER BY te.hop, e.id LIMIT %s", (str(trace_id), limit)).fetchall()
-        total = c.execute("SELECT count(*) FROM trace_edge WHERE trace_id = %s",
-                          (str(trace_id),)).fetchone()[0]
+        path_txs = sorted({h["tx"] for c_ in r.get("vasp_candidates", [])
+                           for h in (c_.get("nearest") or {}).get("path") or []})
+        rows = c.execute(_EDGE_SQL, (str(trace_id), path_txs, limit)).fetchall()
+        total, max_hop = c.execute("SELECT count(*), coalesce(max(hop), 0) FROM trace_edge WHERE trace_id = %s",
+                                   (str(trace_id),)).fetchone()
         reg = PgRegistry((r.get("pins") or {}).get("label_set_version"), conn=c)
 
-        for hop, ch, kind, src, dst, value, dec, asset, tx in rows:
-            amount = float(value) / 10 ** (dec or 0)
-            if kind in ("funds", "credits"):          # BTC: the tx is a node, not an edge
-                addr, txid = (src, tx) if kind == "funds" else (dst, tx)
-                nodes.setdefault(f"tx:{txid}", {"id": f"tx:{txid}", "kind": "tx", "label": txid[:10],
-                                                "hop": hop, "chain": ch})
-                nodes.setdefault(addr, {"id": addr, "kind": "address", "hop": hop, "chain": ch})
-                a, b = (addr, f"tx:{txid}") if kind == "funds" else (f"tx:{txid}", addr)
-                edges.append({"source": a, "target": b, "kind": kind, "amount": round(amount, 8),
-                              "asset": asset, "tx": txid, "hop": hop})
-            else:
-                for a in (src, dst):
-                    nodes.setdefault(a, {"id": a, "kind": "address", "hop": hop, "chain": ch})
-                edges.append({"source": src, "target": dst, "kind": kind, "amount": round(amount, 8),
-                              "asset": asset, "tx": tx, "hop": hop})
+        _shape(rows, nodes, edges)
 
         # PgRegistry resolves the pinned label set lazily against THIS connection, so the node
         # enrichment has to happen while it is still open.
@@ -422,11 +440,68 @@ def trace_graph(trace_id: UUID, limit: int = Query(1200, ge=1, le=20000)):
 
     return {"trace_id": str(trace_id), "chain": chain, "wallet": r.get("wallet"),
             "state": r.get("state"), "partial": r.get("partial", False),
-            "max_hop": max((e["hop"] for e in edges), default=0),
+            "max_hop": max_hop,
             "nodes": list(nodes.values()), "edges": edges,
             "truncated": total > len(rows), "n_edges_total": total,
-            "note": ("Rendered from Postgres, the system of record — not from the Neo4j index. "
+            "note": ("Rendered from Postgres, the system of record; not from the Neo4j index. "
                      "BTC keeps the :Tx hypernode shape; EVM is address -> address.")}
+
+
+@app.get("/trace/{trace_id}/techniques")
+def trace_techniques(trace_id: UUID):
+    """The laundering techniques the trace passed through, hop by hop, each tagged observed /
+    heuristic / label (app.attribution.techniques). BTC tx shapes come from the trace's own
+    hypernode edges, so this costs no provider call and works on every stored trace."""
+    r = _result(trace_id)
+    with connect() as c:
+        rows = c.execute(
+            "SELECT e.tx_hash, count(DISTINCT e.src) FILTER (WHERE e.kind = 'funds'), "
+            "count(*) FILTER (WHERE e.kind = 'credits') FROM trace_edge te JOIN edge e ON e.id = te.edge_id "
+            "WHERE te.trace_id = %s AND e.kind IN ('funds', 'credits') GROUP BY e.tx_hash",
+            (str(trace_id),)).fetchall()
+    return {"trace_id": str(trace_id), "techniques": detect_techniques(r, {t: (i, o) for t, i, o in rows})}
+
+
+@app.get("/trace/{trace_id}/stream")
+def trace_stream(trace_id: UUID):
+    """Server-Sent Events: the subgraph as the Celery chords write it (§9.2), not after.
+
+    Each expand_task commits its edges to trace_edge before its chord joins, so polling Postgres is
+    watching the workers land. Events: `status` (state/hop/progress), `edges` (new nodes + edges,
+    same shape as /graph), and a final `done`. Postgres, not Redis pub/sub, on purpose — the stream
+    then needs nothing the rest of the API does not already depend on. Seen edges are tracked by id
+    rather than by an id cursor, because an edge another trace already wrote keeps its OLD id."""
+    tid = str(trace_id)
+    if not job(tid):
+        raise HTTPException(404, "unknown trace")
+
+    def events():
+        seen, known, last, t0 = set(), set(), None, time.time()
+        while time.time() - t0 < STALL_AFTER_S:
+            j = job(tid)
+            with connect() as c:
+                rows = [r for r in c.execute(_EDGE_SQL, (tid, [], 20000)).fetchall() if r[-1] not in seen]
+            if rows:
+                seen.update(r[-1] for r in rows)
+                nodes, edges = {}, []
+                _shape(rows, nodes, edges)
+                fresh = [n for k, n in nodes.items() if k not in known]
+                known.update(nodes)
+                yield f"event: edges\ndata: {json.dumps({'nodes': fresh, 'edges': edges})}\n\n"
+            st = (j["state"], j["current_hop"], j["progress"])
+            if st != last:
+                last = st
+                msg = {"state": st[0], "hop": st[1],
+                       "progress": float(st[2]) if st[2] is not None else None, "error": j["error"]}
+                yield f"event: status\ndata: {json.dumps(msg)}\n\n"
+            if j["state"] in ("DONE", "FAILED"):
+                yield f"event: done\ndata: {json.dumps({'state': j['state']})}\n\n"
+                return
+            time.sleep(0.4)
+        yield f"event: done\ndata: {json.dumps({'state': 'TIMEOUT'})}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 # ---------- convergence (§8) ----------
@@ -450,6 +525,42 @@ def convergence(trace_ids: str, chain: str = "btc", min_shared: int = Query(2, g
         rows = converge(c, ids, chain=chain, min_shared=min_shared, wallets=wallets)
     return {"trace_ids": ids, "wallets": wallets, "shared_nodes": rows,
             "n_shared": len([r for r in rows if not r["is_traced_wallet"]])}
+
+
+# ---------- benchmark (§11.2) ----------
+_BENCH: dict = {}
+
+
+@app.get("/benchmark")
+def benchmark():
+    """The eval harness over the whole golden set, served — the same `run_case`/`summary` the CLI
+    prints, offline from the raw store (0 upstream calls), so the number on screen is the shipped
+    number. Cached per (frozen weights, golden file mtime): recomputing is ~8s of pure replay and
+    the answer cannot change unless one of those does."""
+    from app.eval import harness
+    key = (weight_hash(), harness.GOLDEN.stat().st_mtime)
+    if key not in _BENCH:
+        t0, out = time.time(), []
+        for c in harness.cases():
+            r = harness.run_case(c, offline=True)
+            same, n = harness.stability(r)
+            out.append({**r, "verdict": harness.verdict(r), "stable": [same, n], "golden": c})
+        m = {k: v for k, v in harness.summary(out).items() if not k.startswith("_")}
+        _BENCH.clear()
+        _BENCH[key] = {
+            "weights": weight_hash(), "wall_s": round(time.time() - t0, 1), "summary": m,
+            "cases": [{
+                "id": r["id"], "title": r["golden"].get("title") or r["id"],
+                "chain": r.get("chain") or r["golden"]["chain"],
+                "suspect": r["golden"]["suspect_addr"],
+                "snapshot": r["golden"].get("until_block") or harness.SNAPSHOT[r["golden"]["chain"]],
+                "expect": r["golden"]["expect"], "expected_entity": r["golden"].get("expected_entity"),
+                "verdict": r["verdict"], "state": r["state"], "recommended": r.get("recommended"),
+                "hops": r.get("hops"), "calls": r.get("calls"), "upstream": r.get("upstream"),
+                "stable": r["stable"], "wall_s": r["wall_s"],
+                "why": r["golden"].get("why"), "source_doc": r["golden"].get("source_doc"),
+            } for r in out]}
+    return _BENCH[key]
 
 
 # ---------- SAHYOG mock (§17) — documented contract, never a live integration ----------
@@ -478,7 +589,7 @@ def sahyog_disclosure(trace_id: UUID | None = None, case_reference: str | None =
         raise HTTPException(422, "trace_id is required (body {\"trace_id\": ...} or ?trace_id=)")
     payload = sahyog_mock.disclosure_payload(_result(tid), ref)
     return {"request_id": f"MOCK-{str(tid)[:8]}", "accepted": False,
-            "note": "MOCK endpoint — nothing was transmitted to SAHYOG or any VASP.",
+            "note": "MOCK endpoint: nothing was transmitted to SAHYOG or any VASP.",
             "disclosure_payload": payload}
 
 

@@ -24,7 +24,7 @@ export function ProvenanceCard({ r }: { r: TraceResult }) {
 
   return (
     <div className="panel">
-      <h2>Provenance</h2>
+      <h2>Provenance: where every claim came from</h2>
 
       {p.provenance.length === 0 ? (
         <div className="dim">No candidate endpoint, so there is no label provenance to show.</div>
@@ -53,10 +53,12 @@ export function ProvenanceCard({ r }: { r: TraceResult }) {
       )}
 
       {p.sweep_evidence.length > 0 && (
-        <>
-          <div className="dim" style={{ fontSize: 12, margin: '14px 0 6px' }}>
-            sweep evidence — how the endpoint earns the words "deposit address"
-          </div>
+        <details style={{ marginTop: 14 }}>
+          <summary className="fg2" style={{ cursor: 'pointer', fontSize: 13 }}>
+            Sweep evidence · {p.sweep_evidence.length} deposit address{p.sweep_evidence.length === 1 ? '' : 'es'} proven by
+            what they did with the money
+          </summary>
+          <div style={{ height: 8 }} />
           {p.sweep_evidence.map((s) => (
             <div key={s.address} style={{ marginBottom: 10 }}>
               <div className="row" style={{ gap: 14 }}>
@@ -80,12 +82,14 @@ export function ProvenanceCard({ r }: { r: TraceResult }) {
               </div>
             </div>
           ))}
-        </>
+        </details>
       )}
 
-      <div className="dim" style={{ fontSize: 12, margin: '14px 0 6px' }}>
-        provider response hashes — the cached bytes this trace was computed from
-      </div>
+      <details style={{ marginTop: 10 }}>
+      <summary className="fg2" style={{ cursor: 'pointer', fontSize: 13 }}>
+        Response hashes · {p.response_hashes.length} provider answers this trace was computed from, content-addressed
+      </summary>
+      <div style={{ height: 8 }} />
       {p.response_hashes.length === 0 ? (
         <div className="note">
           No cached provider rows matched this trace's pinned snapshot. The hash is recorded per
@@ -107,6 +111,7 @@ export function ProvenanceCard({ r }: { r: TraceResult }) {
           </tbody>
         </table>
       )}
+      </details>
 
       <div className="row" style={{ marginTop: 12, gap: 16, fontSize: 12 }}>
         <span className="dim mono">block {p.pins.snapshot_block}</span>
@@ -115,7 +120,7 @@ export function ProvenanceCard({ r }: { r: TraceResult }) {
         <span className="dim mono">{p.pins.adapter_version}</span>
       </div>
       <div className="note">
-        Provenance and reproducibility are not legal chain of custody — production custody,
+        Provenance and reproducibility are not legal chain of custody. Production custody,
         retention and DPDP posture are named as future work, not built.
       </div>
     </div>

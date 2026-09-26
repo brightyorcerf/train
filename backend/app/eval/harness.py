@@ -105,6 +105,28 @@ def stability(r: dict, n=N_PROFILES) -> tuple[int, int]:
     return same, n
 
 
+def summary(out: list[dict]) -> dict:
+    """The headline numbers, computed once — the CLI prints them and GET /benchmark serves them, so
+    the slide and the terminal cannot disagree. Keys starting with _ are row lists for the CLI."""
+    scored = [r for r in out if r["state"] not in ("STORE_MISS", "ERROR", "INCOMPLETE")]
+    discovery = [r for r in scored if r["expect"] == "ATTRIBUTED"]
+    st = [stability(r) for r in scored]
+    contested = [r for r in scored if len(r["ranked"]) >= 2]
+    c_st = [stability(r) for r in contested]
+    return {
+        "cases": len(out), "scored": len(scored), "not_scored": len(out) - len(scored),
+        "correct": sum(r["verdict"] == "CORRECT" for r in scored),
+        "discovery": len(discovery), "discovery_correct": sum(r["verdict"] == "CORRECT" for r in discovery),
+        "confusers": len(scored) - len(discovery),
+        "confusers_correct": sum(r["verdict"] == "CORRECT" for r in scored if r["expect"] != "ATTRIBUTED"),
+        "stable": sum(s for s, _ in st), "profiles": sum(n for _, n in st),
+        "contested": len(contested), "contested_stable": sum(s for s, _ in c_st),
+        "contested_profiles": sum(n for _, n in c_st),
+        "calls": sum(r.get("calls") or 0 for r in scored), "upstream": sum(r.get("upstream") or 0 for r in scored),
+        "_scored": scored, "_contested": contested,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--online", action="store_true", help="allow live provider calls (default: store only)")
@@ -133,44 +155,36 @@ def main():
         if r["state"] in ("STORE_MISS", "ERROR"):
             print(f"             {r.get('error')}")
         if r["state"] == "INCOMPLETE":
-            print("             NOT SCORED — the trace is incomplete (a read this snapshot never "
+            print("             NOT SCORED: the trace is incomplete (a read this snapshot never "
                   "stored). Abstention on missing data is not abstention on evidence.")
             print(f"             {next((f for f in r['flags'] if f.startswith('partial:')), '')[:150]}")
 
-    scored = [r for r in out if r["state"] not in ("STORE_MISS", "ERROR", "INCOMPLETE")]
-    correct = [r for r in scored if r["verdict"] == "CORRECT"]
-    discovery = [r for r in scored if r["expect"] == "ATTRIBUTED"]
-    disc_ok = [r for r in discovery if r["verdict"] == "CORRECT"]
-    st = [stability(r) for r in scored]
-    stable = sum(s for s, _ in st)
-    total_p = sum(n for _, n in st)
-    contested = [r for r in scored if len(r["ranked"]) >= 2]
-    c_st = [stability(r) for r in contested]
-
+    m = summary(out)
+    scored, contested = m["_scored"], m["_contested"]
     print(f"\n{'=' * 78}")
-    print(f"the correct VASP ranked #1 in {len(disc_ok)} of {len(discovery)} discovery cases")
-    print(f"all cases (discovery + confusers) decided as documented: {len(correct)} of {len(scored)}")
-    if len(out) != len(scored):
-        print(f"NOT SCORED: {len(out) - len(scored)} case(s) could not be served "
+    print(f"the correct VASP ranked #1 in {m['discovery_correct']} of {m['discovery']} discovery cases")
+    print(f"all cases (discovery + confusers) decided as documented: {m['correct']} of {m['scored']}")
+    if m["not_scored"]:
+        print(f"NOT SCORED: {m['not_scored']} case(s) could not be served "
               f"({'/'.join(sorted({r['state'] for r in out if r not in scored}))})")
-    print(f"rank stability under +/-20% weight perturbation: top-1 unchanged in {stable} of {total_p} "
-          f"case-profiles ({N_PROFILES} profiles x {len(scored)} cases)")
+    print(f"rank stability under +/-20% weight perturbation: top-1 unchanged in {m['stable']} of "
+          f"{m['profiles']} case-profiles ({N_PROFILES} profiles x {len(scored)} cases)")
     if contested:
         print(f"  of which CONTESTED (>= 2 ranked candidates, so the ranking could actually move): "
-              f"{sum(s for s, _ in c_st)} of {sum(n for _, n in c_st)} case-profiles across "
+              f"{m['contested_stable']} of {m['contested_profiles']} case-profiles across "
               f"{len(contested)} case(s)")
     else:
-        print("  CONTESTED cases (>= 2 ranked candidates): 0 — every case reached at most one "
+        print("  CONTESTED cases (>= 2 ranked candidates): 0; every case reached at most one "
               "candidate, so top-1 could not change under ANY weights. The stability count above "
               "is true by construction and is NOT evidence of calibration. Add a golden case with "
               "competing candidates before citing it.")
     cliff = [r for r in scored if (r.get("calls") or 0) >= 0.95 * MAX_CALLS]
     for r in cliff:
-        print(f"  ! {r['id']}: {r['calls']} calls against the {MAX_CALLS} budget — this case sits on "
+        print(f"  ! {r['id']}: {r['calls']} calls against the {MAX_CALLS} budget; this case sits on "
               f"the cliff edge; a small fan-out change flips it to UNATTRIBUTED")
     print(f"telemetry: {sum(r.get('calls', 0) for r in scored)} logical requests, "
           f"{sum(r.get('upstream', 0) for r in scored)} upstream, {time.time() - t0:.1f}s total")
-    print("n is small — treat these as a held-out smoke test, not an accuracy figure. Never a percentage.")
+    print("n is small; treat these as a held-out smoke test, not an accuracy figure. Never a percentage.")
     if a.json:
         Path(a.json).write_text(json.dumps([{k: v for k, v in r.items() if k != "_trace"} for r in out],
                                            indent=2, default=str))

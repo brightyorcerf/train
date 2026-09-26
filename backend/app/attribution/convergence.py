@@ -83,14 +83,14 @@ def converge(conn, trace_ids: list[str], chain: str | None = None, label_set=Non
         # what kind of sharing this is — an exchange hot wallet is shared by everyone, and saying so
         # is the difference between an insight and a false lead
         r["interpretation"] = (
-            "one of the traced wallets — direct linkage between these cases, not a shared downstream node"
+            "one of the traced wallets: direct linkage between these cases, not a shared downstream node"
             if r["is_traced_wallet"] else
-            f"shared {best.role} boundary ({r['entity_name']}) — the trace stops here; downstream is "
+            f"shared {best.role} boundary ({r['entity_name']}); the trace stops here; downstream is "
             "not followed (§9.3)" if best and best.role in ("mixer", "dex") else
-            "common VASP endpoint — one SAHYOG request can cover all of these cases"
+            "common VASP endpoint: one SAHYOG request can cover all of these cases"
             if best and best.role in ("deposit", "hot") else
             "sanctioned address common to these cases" if best else
-            "unlabeled address common to these cases — a shared intermediary or shared infrastructure; "
+            "unlabeled address common to these cases: a shared intermediary or shared infrastructure; "
             "worth a closer look")
     return rows
 

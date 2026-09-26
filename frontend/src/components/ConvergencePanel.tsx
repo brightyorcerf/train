@@ -42,7 +42,7 @@ export function ConvergencePanel({ cases }: { cases: CaseRow[] }) {
 
   return (
     <div className="panel">
-      <h2>Convergence — where separate complaints turn out to be one campaign</h2>
+      <h2>Convergence: where separate complaints turn out to be one campaign</h2>
 
       <div className="note" style={{ marginTop: 0 }}>
         Pick two or more finished traces on the same chain. The intersection runs over stored
@@ -130,13 +130,13 @@ export function ConvergencePanel({ cases }: { cases: CaseRow[] }) {
           {vasp.length === 0 && out.n_shared > 0 && (
             <div className="note">
               The shared node is a boundary, not a disclosure target: the traces converge before any
-              of them reaches a VASP. One SAHYOG request cannot cover these cases — what they share
+              of them reaches a VASP. One SAHYOG request cannot cover these cases: what they share
               is where the money stopped being followable (§9.3), and saying so is the difference
               between an insight and a false lead.
             </div>
           )}
           <div className="note">
-            A shared node is not automatically a suspect — an exchange hot wallet is shared by
+            A shared node is not automatically a suspect. An exchange hot wallet is shared by
             everyone. Rows that are themselves traced wallets are excluded from the count above.
           </div>
         </>

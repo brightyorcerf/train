@@ -21,7 +21,7 @@ fixed in the code and what is still open. Verification after the fixes, on the r
 |---|---|
 | hostile-input sweep (`p2_api.py`, 52 assertions) | **52 PASS / 0 FAIL** (was 35 PASS / 17 FAIL) |
 | invariant suite (`p3_logic.py`) | **19 / 19 PASS** (was 11 / 19) |
-| offline golden-set eval | 5 of 5 discovery correct, 6 of 6 scored, **2 not scored** (see F28), 0 upstream |
+| offline golden-set eval | 5 of 5 discovery correct, 6 of 6 scored, **2 not scored** (see F28), 0 upstream — **superseded 2026-09-26, see §0.1** |
 | §12 reproduce-and-verify | **VERIFIED**, exit 0 — `python -m app.eval.verify <trace_id>` |
 | report determinism | same hash on repeated renders (`419c6f04…`) |
 | `audit_log` UPDATE / DELETE | both rejected by trigger |
@@ -31,6 +31,25 @@ fixed in the code and what is still open. Verification after the fixes, on the r
 | Lazarus convergence | unchanged: 7/7 Tornado Cash, 120,200 ETH |
 | DB after cleanup | baseline exactly: cases 77, edge 5,200, trace_edge 35,510, utxo_tx 102 |
 
+### 0.1 · Update 2026-09-26 — store completed, drivers unified
+
+- **F28 closed.** The two unscored confusers' reads were fetched once (`harness --online`, 210
+  upstream) and now replay offline: both CORRECT.
+- **F12 closed.** `collect_all` is the API default. Per-task cost was the Neo4j driver built per
+  node and one upsert round trip per edge; one driver per worker + a batched `unnest` upsert took a
+  warm full walk to 2.2–6.4s per golden case (was 1901s on Case B).
+- **New finding — the chord driver's budget accounting diverged from the sequential reference.**
+  Cold per-task memos re-counted reads and hits were stamped with the level-END total, so Li Jiadong
+  crowned Binance live while the harness abstained. `level_done` now walks results in address order,
+  counts only reads the trace-wide memo has not seen, and stamps each hit with the running count.
+  `scripts/parity_check.py`: **8 of 8 cases, live == harness** on state, target and call count.
+- **Headline moved: 7 of 8 decided as documented (4 of 5 discovery, 3 of 3 confusers), 0 wrong.**
+  With the store complete, Li Jiadong reaches a second sweep-proven candidate (Bitfinex 64 at 4 hops
+  vs Binance 70 at 3) and abstains on separation 6 < τ 10. Weights were NOT touched. This is also the
+  first contested golden case, so rank stability now has a denominator that can move (F23).
+- `/benchmark`, `/trace/{id}/techniques`, `/trace/{id}/stream` (SSE) added; `/graph` now puts the
+  candidates' path edges ahead of its 1200-edge render cap (Li Jiadong's path was being cut).
+
 **Fixed:** F01, F02, F03, F04, F06 (partly — see below), F07, F08, F09, F10, F11, F13, F14, F15
 (partly), F16, F17, F18, F19, F21, F22, F25, F26, F27, F29.
 
@@ -39,10 +58,9 @@ fixed in the code and what is still open. Verification after the fixes, on the r
 | ID | Why it is still open |
 |---|---|
 | F05 | Needs a real deposit from you to WazirX/KuCoin (~68 Etherscan calls). DEMO.md beat 7 now states the WazirX branch is a contrast lookup, not a case that fired. |
-| F12 (half) | Trace-derived labels now survive the chord, but the driver still stops at the first hit level while the eval walks every branch. Turning `collect_all` on by default made Case B take **1901s** vs ~3s. `collect_all` is now a request flag; the per-task cost that blocks it is F29-adjacent and partly addressed. |
 | F15 (half) | Per-case access token NOT built. Mitigation shipped: api and neo4j bind to `127.0.0.1`, `audit_log` is trigger-enforced. Anyone who reaches the port still reads every case. |
 | F20 | The 2,935-edge wallet exists only as a FAILED trace. Re-tracing costs Etherscan quota. |
-| F23, F24 | Need new golden fixtures (a ≥2-candidate case; a dated Tornado sanctioned→delisted pair). |
+| F24 | Needs a new golden fixture (a dated Tornado sanctioned→delisted pair). F23 is met by Li Jiadong since 2026-09-26. |
 | F28, F30 | New findings from this pass — below. |
 | Phase 4 | The browser pass never ran (extension not connected). All frontend claims remain code-level only. |
 

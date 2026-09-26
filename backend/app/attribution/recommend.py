@@ -40,11 +40,11 @@ def recommend(rows: list[dict], tau: int = SEPARATION_TAU) -> dict:
            "ranked": ranked}
     if ambiguous:
         out["rationale"] = (f"ambiguous: {top['entity_name']} and {ranked[1]['entity_name']} are "
-                            f"{gap} points apart (threshold {tau}) — abstaining rather than crowning one")
+                            f"{gap} points apart (threshold {tau}); abstaining rather than crowning one")
     elif below_floor:
         out["rationale"] = (f"{top['entity_name']} is the only endpoint reached and scores "
                             f"{top['score']}/100, below the {MIN_CROWN}/100 floor for naming a "
-                            f"disclosure target — reported, not crowned")
+                            f"disclosure target; reported, not crowned")
     else:
         out["rationale"] = _rationale(top)
     return out

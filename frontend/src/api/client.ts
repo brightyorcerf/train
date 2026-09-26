@@ -300,6 +300,67 @@ export const rescore = (id: string, body: {
   profiles?: number
 }) => post<Rescore>(`/trace/${id}/rescore`, body)
 
+export type BenchCase = {
+  id: string
+  title: string
+  chain: string
+  suspect: string
+  snapshot: number
+  expect: 'ATTRIBUTED' | 'UNATTRIBUTED'
+  expected_entity: string | null
+  verdict: string
+  state: string
+  recommended: string | null
+  hops: number | null
+  calls: number | null
+  upstream: number | null
+  stable: [number, number]
+  wall_s: number
+  why: string | null
+  source_doc: string | null
+}
+
+export type Benchmark = {
+  weights: string
+  wall_s: number
+  summary: {
+    cases: number; scored: number; not_scored: number; correct: number
+    discovery: number; discovery_correct: number; confusers: number; confusers_correct: number
+    stable: number; profiles: number; contested: number; calls: number; upstream: number
+  }
+  cases: BenchCase[]
+}
+
+export type Technique = {
+  hop: number | null
+  kind: string
+  title: string
+  detail: string
+  basis: 'observed' | 'heuristic' | 'label'
+  tx?: string
+  address?: string
+}
+
+/** The frozen-weight eval harness over the whole golden set, served (GET /benchmark). */
+export const benchmark = () => get<Benchmark>('/benchmark')
+export const techniques = (id: string) => get<{ techniques: Technique[] }>(`/trace/${id}/techniques`)
+
+/** Live subgraph as the Celery chords write it (SSE). Returns the unsubscribe function. */
+export function streamTrace(id: string, on: {
+  edges: (d: { nodes: GraphNode[]; edges: GraphEdge[] }) => void
+  status: (s: { state: string; hop: number; progress: number | null; error: string | null }) => void
+  done: (state: string) => void
+}) {
+  const es = new EventSource(`${API}/trace/${id}/stream`)
+  es.addEventListener('edges', (e) => on.edges(JSON.parse((e as MessageEvent).data)))
+  es.addEventListener('status', (e) => on.status(JSON.parse((e as MessageEvent).data)))
+  es.addEventListener('done', (e) => { on.done(JSON.parse((e as MessageEvent).data).state); es.close() })
+  // EventSource reconnects by itself on a dropped socket; a hard error just ends the live view —
+  // the poller in waitAll still owns the terminal state.
+  es.onerror = () => { if (es.readyState === EventSource.CLOSED) on.done('CLOSED') }
+  return () => es.close()
+}
+
 export const createCase = (body: {
   wallets: string[]
   chain: string
@@ -312,7 +373,7 @@ export const createCase = (body: {
   case_ids: string[]
   snapshot_block: number
   cases: { wallet: string; trace_id: string; reused: boolean; note?: string }[]
-}>('/cases', { fanout: 4, max_hops: 4, ...body })
+}>('/cases', { fanout: 5, max_hops: 5, ...body })
 
 /** The snapshots the stored/golden data is pinned to. Submitting without a snapshot makes the API
  *  pin the live chain tip, which lands outside the raw store and forces live provider calls — the
@@ -339,7 +400,7 @@ export async function waitAll(
     if (Date.now() - t0 > timeoutMs) {
       const stuck = entries.filter(([, s]) => s.state !== 'DONE' && s.state !== 'FAILED')
       throw new Error(
-        `gave up after ${Math.round((Date.now() - t0) / 1000)}s — ` +
+        `gave up after ${Math.round((Date.now() - t0) / 1000)}s: ` +
         stuck.map(([i, s]) => `${i.slice(0, 8)} still ${s.state} at hop ${s.current_hop}`).join(', ') +
         '. The job never reached a terminal state; check the worker log.',
       )

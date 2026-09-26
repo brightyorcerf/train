@@ -54,12 +54,12 @@ def flag(entity: str, name: str, address: str, hop: int, tx_hash: str) -> str:
     """The §9.3 report line: bridge contract + the chains it serves (never a decoded destination)."""
     dests = ", ".join(destinations().get(entity, [])) or "unknown"
     return (f"bridge:{name}@{address}(hop {hop}, tx {tx_hash}) -> serves [{dests}]; "
-            f"per-transfer destination not decoded — subpoena the bridge operator")
+            f"per-transfer destination not decoded; subpoena the bridge operator")
 
 
 def _selfcheck():
     ls = labels()
-    assert ls, "no bridge labels loaded — labels/bridges.yaml missing or empty"
+    assert ls, "no bridge labels loaded; labels/bridges.yaml missing or empty"
     seen = {}
     for l in ls:
         assert l.role == BRIDGE and l.chain == "eth"
@@ -77,4 +77,4 @@ def _selfcheck():
 
 if __name__ == "__main__":
     _selfcheck()
-    print(f"bridge selfcheck PASS — {len(labels())} addresses, {len(destinations())} bridges")
+    print(f"bridge selfcheck PASS; {len(labels())} addresses, {len(destinations())} bridges")

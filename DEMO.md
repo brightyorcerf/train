@@ -67,36 +67,36 @@ and will wipe the Lazarus convergence. See architecture.md §24 for why it is fo
 
 ## 3. The beats
 
-1. **The question.** "Which exchange can identify the account holder behind this wallet?" — an
-   investigative lead, not identity and not evidence.
-2. **Case A — BTC discovery.** Wu Huihui (OFAC) → Binance. Crowned **70/100**, role basis
-   **sweep_proven**, 2 hops. Point at `deposit tx` and the amount caveat: value at the endpoint is
-   what landed there, not the suspect's own share.
-   **Do not say "separation HIGH".** This case reaches ONE candidate, so there is no gap between a
-   top two; the panel now reads "single candidate — no separation". Separation is a real claim only
-   when two entities are ranked, and saying it here invites the judge to ask what the second
-   candidate was.
-3. **GraphView.** Hit `replay hop by hop`. Rectangular `:Tx` hypernodes alternate with circular
-   addresses — that is the UTXO model rendered literally, and EVM renders address → address with no
-   tx nodes at all. Red octagon = sanctioned/mixer STOP. Gold halo = the crowned target.
-   Default view is the **spine (6 of 246 nodes)**; `show all 246` is one click away and the caption
-   states the 240 collapsed are fan-out addresses nothing was concluded from.
-4. **Case B — the honest non-answer.** Hydra market → `UNATTRIBUTED` at a CoinJoin boundary. This is
-   the beat most teams do not have. Abstention is a result.
-5. **Calibration — say less than the old script did.** ScoreBreakdown sliders move each weight
-   ±20% and the backend re-scores (same function the harness calls, zero provider calls). What is
-   honest to claim:
-   > **Weights were frozen before evaluation (`w-75bf07eaee79`), and the score is an index out of
-   > 100 — not a probability and not ownership. Here is the arithmetic behind the number, live.**
-
-   **Do NOT claim rank stability as evidence on these cases.** Every golden case reaches at most
-   one candidate, and a one-row ranking cannot change under any weights — so "12/12" and
-   "160/160 case-profiles" are arithmetic, not calibration. The harness now prints the CONTESTED
-   denominator (cases with ≥2 candidates: currently **0**) and says this in its own output. If a
-   judge presses: *"rank stability is the metric we would report, and we will not report it until
-   the golden set contains a case with competing candidates — that is open work, not a result."*
-   Never "accuracy %" — there is no trained model and no validation set.
-6. **Convergence.** Seven Lazarus complaints → **Tornado Cash, 7/7, 120,200 ETH** (re-verified
+1. **The question + the number.** Landing page. "Which exchange can identify the account holder
+   behind this wallet?" Point at the scorecard — it is `GET /benchmark`, the frozen-weight harness run
+   live over 8 OFAC/DOJ-documented cases from the evidence store: **7 of 8 decided as the record
+   says, 0 wrong, 0 network calls.** Say "7 of 8", never a percentage.
+2. **Case A — BTC discovery.** Click the *Wu Huihui* card. The report scrolls to the top and the
+   verdict flashes: **Funds reached Binance in 2 hops**, 70/100, sweep_proven. The replay starts on
+   its own: particles run only along the attributed path, the camera follows each hop, and the
+   storyboard on the right names each technique with its basis (observed / heuristic / label) —
+   *Consolidation* (the coin is one of 10 inputs), *Rapid layering* (moved on after 1h20m),
+   *Deposit-address sweep* (100% forwarded to a labeled Binance hot wallet, 27+ senders).
+   Amount caveat: value at the endpoint is what landed there, not the suspect's share.
+   **Do not say "separation HIGH"** — one candidate, so the card reads "single candidate".
+3. **The data model.** Hit *Skip to end*, then *Show all*. Rectangular `:Tx` hypernodes between
+   circular addresses is the UTXO model rendered literally; EVM (the Potekhin card) has none.
+4. **Case B — the honest non-answers.** Hydra Market → no target, the trail ends at a CoinJoin.
+   Then **Li Jiadong**: the engine reached TWO sweep-proven exchanges — Binance 70, Bitfinex 64 — and
+   abstains because the gap (6) is under τ=10. The replay ends on both endpoints. This is the beat:
+   *the government record says Binance; our engine will not name one exchange on a 6-point margin,
+   and it did not tune its weights to make that go away.*
+5. **Calibration.** ScoreBreakdown sliders re-score on the backend (the harness's own function,
+   zero provider calls). Weights frozen (`w-75bf07eaee79`). Rank stability: the harness now has
+   **one contested case** (Li Jiadong) and its abstention holds in 20 of 20 ±20% profiles. Claim
+   exactly that; the other seven reach one candidate, where stability is arithmetic.
+   Never "accuracy %".
+5b. **The engine, live.** On any golden report hit **Re-trace live ↻** (forced re-run at the same
+   snapshot — replays from the store, no Wi-Fi needed). The *live* panel streams `/trace/{id}/stream` (SSE): hop
+   lanes fill as the Celery chord for each hop commits. Flex line: *the distributed driver decides
+   all 8 golden cases call-for-call identically to the sequential reference*
+   (`scripts/parity_check.py`, 8 of 8).
+6. **Convergence** (*Recent traces* drawer → tick the Lazarus wallets → find shared nodes). Seven Lazarus complaints → **Tornado Cash, 7/7, 120,200 ETH** (re-verified
    2026-09-18; the eighth wallet's trace is FAILED and is not selectable, which is why it is seven
    and not eight). The honest ending: this converges on a **mixer boundary**, not a VASP — so one
    SAHYOG request cannot cover them. Saying that is the difference between an insight and a false
@@ -135,7 +135,7 @@ Assign a name to each slot before the presentation — one owner per question, s
 | # | Question | Answer in one breath | Owner |
 |---|---|---|---|
 | 1 | "How do you know the exchange owns that address?" | Sweep proof (§6.2c): the deposit address swept into a labeled hot wallet; `role_basis: sweep_proven`, with the sweep tx, distinct-sender count and share on the Provenance card. | ______ |
-| 2 | "Is your confidence calibrated?" | It is an **index out of 100**, not a probability and not ownership, and every factor is inspectable on screen. Weights were frozen before evaluation (`w-75bf07eaee79`). Rank stability under ±20% is the metric we would defend, and we do not claim it yet: our golden cases reach one candidate each, so the ranking cannot move — the harness prints that denominator itself. | ______ |
+| 2 | "Is your confidence calibrated?" | It is an **index out of 100**, not a probability and not ownership, and every factor is inspectable on screen. Weights were frozen before evaluation (`w-75bf07eaee79`). Rank stability under ±20%: one golden case is contested (Li Jiadong, Binance 70 vs Bitfinex 64) and its abstention holds in 20/20 profiles; the other seven reach one candidate, where stability is arithmetic — the harness prints that denominator itself. | ______ |
 | 3 | "Why OFAC data for an Indian tool?" | OFAC is only the sanctioned layer. The India answer is the SAHYOG routing: onboarded VASP → portal under BNSS §94; otherwise the honest MLAT boundary. | ______ |
 | 4 | "What if it errors on stage?" | FAILED is a real state with the cause recorded; convergence and the graph are Postgres-only; and the whole demo replays offline. | ______ |
 | 5 | "Is this chain-wide / real-time?" | No, and we never claim it. Bounded BFS, pinned snapshot, capped call budget. Claiming chain-scale monitoring is the claim that would not survive scrutiny (§18). | ______ |

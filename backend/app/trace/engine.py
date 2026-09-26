@@ -227,7 +227,7 @@ class Tracer:
                 # §9.3 DEX: record the swap and CONTINUE at reduced confidence (scoring applies the
                 # dex penalty, §11.1). We do not expand the router itself — it is a hub, and the
                 # funds did not stay there; we follow the asset this same party received back.
-                flags.append(f"dex:{name}@{k}(hop {hop}, tx {m['hash']}) — asset swapped, 1:1 value "
+                flags.append(f"dex:{name}@{k}(hop {hop}, tx {m['hash']}); asset swapped, 1:1 value "
                              f"linkage broken")
                 nxt += self._after_swap(node, m, hop)
                 continue

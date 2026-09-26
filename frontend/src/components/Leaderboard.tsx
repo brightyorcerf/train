@@ -1,7 +1,5 @@
 import type { TraceResult } from '../api/client'
 
-const MEDAL = ['🥇', '🥈', '🥉']
-
 /** Ranked candidates + the separation indicator. Score is a confidence INDEX out of 100 (§11.1),
  *  never a probability — the header says so rather than leaving a bare number to be misread. */
 export function Leaderboard({ r }: { r: TraceResult }) {
@@ -13,7 +11,7 @@ export function Leaderboard({ r }: { r: TraceResult }) {
         <div className="dim">No VASP candidate reached within the budget.</div>
         <div className="note">
           {r.reason ? `Terminated: ${r.reason}.` : ''} An empty leaderboard is a result, not a
-          failure — nothing is crowned on absence of evidence.
+          failure. Nothing is crowned on absence of evidence.
         </div>
       </div>
     )
@@ -21,7 +19,7 @@ export function Leaderboard({ r }: { r: TraceResult }) {
   return (
     <div className="panel">
       <h2>
-        Leaderboard — confidence index /100
+        Leaderboard: confidence index /100
         {/* Separation is the gap between the top TWO. With one candidate the backend now sends
             null, and saying so beats printing the sole score as if it were a margin. */}
         {r.separation ? (
@@ -29,7 +27,7 @@ export function Leaderboard({ r }: { r: TraceResult }) {
             separation: {r.separation}{r.separation_pts != null ? ` (${r.separation_pts} pts)` : ''}
           </span>
         ) : cands.length === 1 ? (
-          <span className="tag dim" style={{ marginLeft: 10 }}>single candidate — no separation</span>
+          <span className="tag dim" style={{ marginLeft: 10 }}>single candidate, no separation</span>
         ) : null}
       </h2>
       <table>
@@ -39,7 +37,7 @@ export function Leaderboard({ r }: { r: TraceResult }) {
         <tbody>
           {cands.map((c, i) => (
             <tr key={c.entity} className={c.entity === r.recommended ? 'sel' : ''}>
-              <td>{MEDAL[i] ?? i + 1}</td>
+              <td className="mono dim">#{i + 1}</td>
               <td className={c.entity === r.recommended ? 'gold' : ''}>
                 {c.entity_name}
                 {c.entity === r.recommended && <span className="dim"> · crowned</span>}
@@ -58,8 +56,8 @@ export function Leaderboard({ r }: { r: TraceResult }) {
         </tbody>
       </table>
       <div className="note">
-        Confidence index, not a probability and not ownership. Separation is the gap between #1 and
-        #2 — a LOW gap is why the engine sometimes declines to crown anything.
+        A confidence index, not a probability. Below a 10-point gap between #1 and #2 the engine
+        declines to crown either.
         {r.below_floor && ' This candidate is listed but NOT crowned: it scores below the floor for'
           + ' naming a disclosure target, so the engine reports it without recommending it.'}
       </div>

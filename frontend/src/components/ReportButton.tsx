@@ -35,7 +35,7 @@ export function ReportButton({ r }: { r: TraceResult }) {
           <button>open PDF report</button>
         </a>
         <span className="note" style={{ marginTop: 0 }}>
-          Four determinism pins on the face — re-running with them reproduces the report.
+          Four determinism pins on the face. Re-running with them reproduces the report.
         </span>
       </div>
 
@@ -44,10 +44,10 @@ export function ReportButton({ r }: { r: TraceResult }) {
       {p && (
         <>
           <div className="dim" style={{ fontSize: 12, margin: '14px 0 6px' }}>
-            this case — {p.target_vasp ?? 'no target crowned'}
+            this case: {p.target_vasp ?? 'no target crowned'}
           </div>
           <div className="panel" style={{
-            margin: 0, borderColor: routable ? 'var(--green)' : 'var(--amber)', background: 'var(--panel-2)',
+            margin: 0, borderColor: routable ? 'var(--green)' : 'var(--amber)', background: 'var(--surface-2)',
           }}>
             <span className={`tag ${routable ? 'green' : 'amber'}`}>
               {routable ? 'SAHYOG portal' : 'MLAT / direct legal process'}
@@ -58,11 +58,11 @@ export function ReportButton({ r }: { r: TraceResult }) {
           {alt && (
             <>
               <div className="dim" style={{ fontSize: 12, margin: '12px 0 6px' }}>
-                contrast branch — {alt.target_vasp_name} ({alt.jurisdiction.join(', ') || 'jurisdiction unrecorded'})
+                contrast branch: {alt.target_vasp_name} ({alt.jurisdiction.join(', ') || 'jurisdiction unrecorded'})
               </div>
               <div className="panel" style={{
                 margin: 0, borderColor: alt.routable_via_sahyog ? 'var(--green)' : 'var(--amber)',
-                background: 'var(--panel-2)',
+                background: 'var(--surface-2)',
               }}>
                 <span className={`tag ${alt.routable_via_sahyog ? 'green' : 'amber'}`}>
                   {alt.routable_via_sahyog ? 'SAHYOG portal' : 'MLAT / direct legal process'}
