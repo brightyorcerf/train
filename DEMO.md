@@ -69,8 +69,8 @@ and will wipe the Lazarus convergence. See architecture.md §24 for why it is fo
 
 1. **The question + the number.** Landing page. "Which exchange can identify the account holder
    behind this wallet?" Point at the scorecard — it is `GET /benchmark`, the frozen-weight harness run
-   live over 8 OFAC/DOJ-documented cases from the evidence store: **7 of 8 decided as the record
-   says, 0 wrong, 0 network calls.** Say "7 of 8", never a percentage.
+   live over 9 OFAC/DOJ-documented cases from the evidence store: **8 of 9 decided as the record
+   says, 0 wrong, 0 network calls.** Say "8 of 9", never a percentage.
 2. **Case A — BTC discovery.** Click the *Wu Huihui* card. The report scrolls to the top and the
    verdict flashes: **Funds reached Binance in 2 hops**, 70/100, sweep_proven. The replay starts on
    its own: particles run only along the attributed path, the camera follows each hop, and the
@@ -107,11 +107,13 @@ and will wipe the Lazarus convergence. See architecture.md §24 for why it is fo
    > branch. Alongside it we print what the portal branch looks like for a VASP that IS onboarded,
    > WazirX, under BNSS §94.**
 
-   WazirX is a **registry lookup shown for contrast, not a case that reached it** — we hold no
-   deposit-role address for any onboarded VASP (0 ground-truth labels; WazirX has one hot address
-   on ETH/Polygon and none on BTC). Claiming "the portal route fires" implies a case we do not
-   have. The controlled-deposit case that would make it fire for real is open work (§7) and needs
-   our own deposit to WazirX/KuCoin.
+   **The portal branch now fires on a real case (2026-09-27):** golden case `aljebouri-kucoin-tron`,
+   an OFAC-listed (SDGT, 2026-07-23) USDT wallet on Tron, traces 2 hops to a sweep-proven KuCoin
+   deposit address (99,900 USDT in; 19 senders; first 3 spends 100% to KuCoin's own published
+   reserve wallet). KuCoin is SAHYOG-onboarded, so the disclosure payload routes to the portal under
+   BNSS §94. Say it precisely: hop 1 is a second OFAC-listed address of the same person, so from
+   the sanctioned cluster it is one hop to KuCoin. The WazirX line on the Binance report stays a
+   registry lookup for contrast. The controlled deposit (§7) remains open work.
 
 ---
 

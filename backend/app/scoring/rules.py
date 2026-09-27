@@ -62,7 +62,7 @@ def path_penalty(flags, cand: dict) -> tuple[float, list[str]]:
     from app.scoring.weights import PENALTIES
     # `on_path` holds ADDRESSES, not hop counts. It was called `hops`, which read as if scoring
     # touched proximity — the one thing §3 forbids here.
-    on_path = {p["to"] for p in cand.get("path", ())} | {p["from"] for p in cand.get("path", ())}
+    on_path = {x.lower() for p in cand.get("path", ()) for x in (p["to"], p["from"])}   # flag addrs are lowered below
     txs = {p["tx"] for p in cand.get("path", ())}
     hit, total = [], 0.0
     for f in flags or ():

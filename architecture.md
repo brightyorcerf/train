@@ -575,11 +575,12 @@ operational data exists* — the concrete future-work item.
   2026-09-26 one golden case is contested: Li Jiadong reaches two sweep-proven exchanges (Binance 70
   at 3 hops, Bitfinex 64 at 4) and abstains because the 6-point gap is under τ=10, in 20 of 20
   perturbed profiles. Weights were not touched to produce or remove this.
-- **Headline (2026-09-26, store complete): 7 of 8 decided as documented** (4 of 5 discovery ranked
-  correctly, 3 of 3 confusers refused, the remaining discovery case abstained, 0 wrong), 0 upstream
-  calls. `harness.summary()` computes it once; the CLI prints it and `GET /benchmark` serves it
+- **Headline (2026-09-27, store complete): 8 of 9 decided as documented** (5 of 6 discovery ranked
+  correctly incl. the Tron → KuCoin case, 3 of 3 confusers refused, the remaining discovery case
+  abstained, 0 wrong), 0 upstream calls. Numbers live in `backend/app/eval/results/canonical.json`. `harness.summary()` computes it once; the CLI prints it and `GET /benchmark` serves it
   (cached on frozen weights + golden-file mtime), so the number on a slide is the shipped number.
-- A case whose trace comes back `INCOMPLETE` is **not scored**: a confuser that abstains because
+- A case whose trace comes back `INCOMPLETE`, or `PARTIAL` (a read the store never had, which may
+  have hidden a competing candidate), is **not scored**: a confuser that abstains because
   the data never arrived has demonstrated nothing.
 - **Offline fixture mode** (`eval run --offline`, from stored raw responses) = the reproducibility
   demo. **Per-case telemetry** (API calls, wall-clock, cost) = the direct evidence for the PS's
@@ -769,8 +770,9 @@ feeds the "reduce investigation time" telemetry (§11.2).
 4. *"Why does an Indian tool run on the US OFAC list?"* → OFAC is only the *sanctioned* layer;
    deposit labels are curated for the **SAHYOG-onboarded** VASPs; the tool routes to
    Indian-accessible exchanges under BNSS §94.
-5. *"Why no Tron, when USDT-on-Tron is the fraud rail?"* → two data models (UTXO/account) first;
-   Tron labels seeded; adapter interface shown; **prioritized next chain**; acknowledged honestly.
+5. *"What about Tron, when USDT-on-Tron is the fraud rail?"* → built (2026-09-27): TronGrid USDT
+   (TRC-20) adapter on the account-model path, replayable from the store; golden case
+   `aljebouri-kucoin-tron` reaches a SAHYOG-onboarded VASP. USDT only: no TRX-native tracing.
 6. *"What happens at a DEX / mixer / bridge?"* → the service-node policy (§9); we distinguish them.
 7. *"Can you trace through a mixer?"* → no, and no one reliably can; we detect + flag + drop
    downstream confidence. Never claim to de-mix.

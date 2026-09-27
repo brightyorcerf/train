@@ -8,6 +8,7 @@ Measured ceilings this limiter is configured from:
   etherscan      3 req/s server-enforced; we pace 2.5/s (jitter still trips ~15%, day 1)
   mempool        no published limit; throttles bursts -> 2 req/s
   blockstream    700 req/hour/IP unauthenticated since 2025-07-15 (its own 429 body) -> 0.19 req/s
+  trongrid       keyless: sequential 2-3/s OK, a 30-way burst 29/30 429 (2026-09-27) -> 1.5/s, no burst
 Daily quota (Etherscan 100k/day) is a separate counter: it is the ceiling that actually bites.
 """
 import time
@@ -17,7 +18,7 @@ import redis
 from app.core.config import settings
 
 # name -> (tokens per second, bucket capacity)
-LIMITS = {"etherscan": (2.5, 1), "mempool": (2.0, 2), "blockstream": (700 / 3600, 5)}
+LIMITS = {"etherscan": (2.5, 1), "mempool": (2.0, 2), "blockstream": (700 / 3600, 5), "trongrid": (1.5, 1)}
 DAILY = {"etherscan": 100_000}
 
 _TAKE = """

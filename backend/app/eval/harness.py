@@ -45,7 +45,7 @@ from app.scoring.weights import (
 from app.trace.engine import MAX_CALLS, Tracer
 
 GOLDEN = REPO / "labels" / "golden_set.yaml"
-SNAPSHOT = {"btc": 966553, "eth": 25906777, "polygon": 93439913}
+SNAPSHOT = {"btc": 966553, "eth": 25906777, "polygon": 93439913, "tron": 1790467200}  # tron: unix s
 N_PROFILES = 20
 
 
@@ -67,8 +67,11 @@ def run_case(c: dict, offline=True, max_hops=5, fanout=5) -> dict:
         return {"id": c["id"], "state": "STORE_MISS" if offline else "ERROR", "error": str(e)[:160],
                 "wall_s": round(time.time() - t0, 1)}
     r = attribute_result(trace)
+    # A partial trace (a read the store never had) may have hidden a competing candidate, so a hit
+    # found on it is not a clean pass either — the same rule as INCOMPLETE.
+    state = "PARTIAL" if offline and trace["partial"] and r["state"] != "INCOMPLETE" else r["state"]
     return {"id": c["id"], "chain": chain, "expect": c["expect"], "expected_entity": c.get("expected_entity"),
-            "state": r["state"], "recommended": r["recommended"], "ambiguous": r["ambiguous"],
+            "state": state, "recommended": r["recommended"], "ambiguous": r["ambiguous"],
             "below_floor": r.get("below_floor", False),
             "ranked": [(v["entity"], v["score"]) for v in r["vasp_candidates"]],
             "n_candidates": len(r["vasp_candidates"]),
@@ -82,7 +85,7 @@ def run_case(c: dict, offline=True, max_hops=5, fanout=5) -> dict:
 
 def verdict(r: dict) -> str:
     """CORRECT / WRONG / ABSTAINED / MISSED — scored against what the case documents."""
-    if r["state"] in ("STORE_MISS", "ERROR", "INCOMPLETE"):
+    if r["state"] in ("STORE_MISS", "ERROR", "INCOMPLETE", "PARTIAL"):
         return r["state"]
     if r["expect"] == "UNATTRIBUTED":
         # a confuser: crowning anyone is the failure mode being tested
@@ -109,7 +112,7 @@ def stability(r: dict, n=N_PROFILES) -> tuple[int, int]:
 def summary(out: list[dict]) -> dict:
     """The headline numbers, computed once — the CLI prints them and GET /benchmark serves them, so
     the slide and the terminal cannot disagree. Keys starting with _ are row lists for the CLI."""
-    scored = [r for r in out if r["state"] not in ("STORE_MISS", "ERROR", "INCOMPLETE")]
+    scored = [r for r in out if r["state"] not in ("STORE_MISS", "ERROR", "INCOMPLETE", "PARTIAL")]
     discovery = [r for r in scored if r["expect"] == "ATTRIBUTED"]
     st = [stability(r) for r in scored]
     contested = [r for r in scored if len(r["ranked"]) >= 2]
@@ -181,7 +184,7 @@ def main():
                   f"got {r['ranked']}")
         if r["state"] in ("STORE_MISS", "ERROR"):
             print(f"             {r.get('error')}")
-        if r["state"] == "INCOMPLETE":
+        if r["state"] in ("INCOMPLETE", "PARTIAL"):
             print("             NOT SCORED: the trace is incomplete (a read this snapshot never "
                   "stored). Abstention on missing data is not abstention on evidence.")
             print(f"             {next((f for f in r['flags'] if f.startswith('partial:')), '')[:150]}")

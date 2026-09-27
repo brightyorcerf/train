@@ -32,17 +32,28 @@ from app.labels.registry import (
     Registry,
     addr_key,
     norm,
+    valid_address,
 )
 
 LABELS = REPO / "labels"
 PACKS = REPO / "vendor" / "graphsense-tagpacks"
 TAGPACKS_COMMIT = "7f9a5d1f"  # inspected 2026-09-11 (scripts/tagpacks_inspection.md)
 EVM = ("eth", "polygon")
+CHAINS = ("btc",) + EVM + ("tron",)
 # OFAC parties Treasury itself describes as virtual-currency exchanges / OTC desks in the
 # designation press releases (SUEX jy0364, Chatex jy0471, Garantex jy0701, Cryptex jy2623,
 # Grinex sb0225, Zedcex 2026-01-30). Curated judgment, not derivable from the SDN data.
 OFAC_VASPS = {"GARANTEX EUROPE OU", "Grinex", "CHATEX", "SUEX OTC, S.R.O.", "Cryptex", "Zedcex Exchange Ltd"}
 BITMEX_DOC = "https://blog.bitmex.com/reissuing-btc-wallet-addresses/"
+
+
+def _chain_of(cur, address: str) -> str | None:
+    """TagPacks currency -> our chain. Tron wallets are tagged TRX/USDT/USDC; the shape decides."""
+    if cur == "BTC":
+        return "btc"
+    if cur == "ETH" or address.startswith("0x"):
+        return "eth"
+    return "tron" if valid_address("tron", address) else None
 
 
 def _chains_for(address: str, chain: str) -> tuple[str, ...]:
@@ -94,7 +105,7 @@ def load_ground_truth(reg: Registry) -> None:
                                 "sweep_of_our_deposit", prov + f" swept in {e['sweep_tx']}"))
 
 
-def load_tagpacks(reg: Registry, chains=("btc",) + EVM) -> None:
+def load_tagpacks(reg: Registry, chains=CHAINS) -> None:
     packs = PACKS / "packs"
     for p in sorted(packs.glob("exchange-wallets-*.yaml")) + [packs / "binance.yaml"]:
         text = p.read_text()
@@ -106,7 +117,7 @@ def load_tagpacks(reg: Registry, chains=("btc",) + EVM) -> None:
         # ponytail: regex over the pack instead of yaml.load — 336k BitMEX tags parse in <1s
         for addr, cur in re.findall(r"^- address: '?([^'\s]+)'?(?:[ \t]*\n[ \t]+currency: (\S+))?", text, re.M):
             cur = cur or pack_cur
-            chain = "btc" if cur == "BTC" else "eth" if cur == "ETH" or addr.startswith("0x") else None
+            chain = _chain_of(cur, addr)
             if chain is None:
                 continue
             for c in _chains_for(addr, chain):
@@ -125,7 +136,7 @@ def load_tagpacks(reg: Registry, chains=("btc",) + EVM) -> None:
 CATEGORY_ROLE = {"exchange": HOT, "mixing_service": MIXER, "coinjoin": MIXER, "defi_dex": DEX}
 
 
-def load_tagpacks_category_tags(reg: Registry, chains=("btc",) + EVM) -> None:
+def load_tagpacks_category_tags(reg: Registry, chains=CHAINS) -> None:
     """walletexplorer, chaininfo, richest_addresses, hacks, interpol-real_services, tornado_cash,
     defi-protocols-csh, … ; web_crawl packs drop to the heuristic tier."""
     done = {p.name for p in (PACKS / "packs").glob("exchange-wallets-*.yaml")} | {"binance.yaml"}
@@ -139,7 +150,8 @@ def load_tagpacks_category_tags(reg: Registry, chains=("btc",) + EVM) -> None:
             cat = t.get("category", pack.get("category"))
             role = CATEGORY_ROLE.get(cat)
             cur = t.get("currency", pack.get("currency"))
-            chain = "btc" if cur == "BTC" else "eth" if cur == "ETH" else None
+            chain = ("btc" if cur == "BTC" else "eth" if cur == "ETH"
+                     else "tron" if valid_address("tron", str(t["address"])) else None)
             name = t.get("label") or pack.get("label") or ""
             eid = t.get("actor") or pack.get("actor") or reg.resolve(name) or (role != HOT and norm(name))
             if role is None or chain is None or not eid:
@@ -199,7 +211,7 @@ def suppress_token_contracts(reg: Registry) -> int:
     return n
 
 
-def build_registry(chains=("btc",) + EVM) -> Registry:
+def build_registry(chains=CHAINS) -> Registry:
     reg = Registry()
     load_actors(reg)
     load_sahyog(reg)

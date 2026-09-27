@@ -1,0 +1,226 @@
+{
+  "snapshot": 1790467200,
+  "label_set": "ls-dd778ec3dbfa",
+  "results": [
+    {
+      "suspect": "TH1yknksde3pBY3oWVhUxVTbWbLqdafqYT",
+      "ofac_entity": "ofac-xinbiguarantee",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 39,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TDU61o35UEe5hdB3R16c116DrPSV4kiyKz",
+      "ofac_entity": "ofac-xinbiguarantee",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 22,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TEECjwHqVG8sDmM3VtscjuCaRe5p351MU7",
+      "ofac_entity": "ofac-xinbiguarantee",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 14,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TE5paMkU1hPr8BdjkSJLvEyUBxjKKSx1H6",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 20,
+      "reason": "no further outgoing value",
+      "sweep": []
+    },
+    {
+      "suspect": "TAhHpxPRwo1Bmm1A9m51uZ31tcB7EPq7SY",
+      "ofac_entity": "ofac-aljebourizaidissamahmed",
+      "result": "ATTRIBUTED",
+      "entity": "kucoin",
+      "hops": 1,
+      "endpoint": "TCMC2p5HqYj5fN7vNPEXsEuT4DWMfaT1a1",
+      "role_basis": "sweep_proven",
+      "calls": 8,
+      "reason": null,
+      "sweep": [
+        {
+          "address": "TCMC2p5HqYj5fN7vNPEXsEuT4DWMfaT1a1",
+          "entity": "kucoin",
+          "share": 1.0,
+          "asset": "USDT",
+          "sweep_tx": "33d686df6a3e1194421077c1421be21c62a36c64c7b77e98ffc1bf5ef3d94dcd",
+          "sweep_ts": 1739033811,
+          "hot_wallet": "TUpHuDkiCCmwaTZBHZvQdwWzGNm5t8J2b9",
+          "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/exchange-wallets-kucoin.yaml <- https://www.kucoin.com/blog/transparency-and-trust-a-detailed-list-of-kucoin-s-wallets",
+          "distinct_senders": 19,
+          "senders_truncated": false,
+          "deposit_event": {
+            "tx": "b465187217122c2f878a0dd1bc79e4fb9dc80fd025a316d298b0b6da59b57198",
+            "ts": 1738944768,
+            "asset": "USDT",
+            "amount": 99900.0
+          },
+          "sweep": "proven"
+        }
+      ]
+    },
+    {
+      "suspect": "TEtLieZwyjJTth7S5EJqUNjtSbM1ui9toK",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 47,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "THJUJFyTnrBWb1ijWav7qfRBrjUuKgP49Z",
+      "ofac_entity": "ofac-aljebourizaidissamahmed",
+      "result": "ATTRIBUTED",
+      "entity": "kucoin",
+      "hops": 2,
+      "endpoint": "TCMC2p5HqYj5fN7vNPEXsEuT4DWMfaT1a1",
+      "role_basis": "sweep_proven",
+      "calls": 19,
+      "reason": null,
+      "sweep": [
+        {
+          "address": "TCMC2p5HqYj5fN7vNPEXsEuT4DWMfaT1a1",
+          "entity": "kucoin",
+          "share": 1.0,
+          "asset": "USDT",
+          "sweep_tx": "33d686df6a3e1194421077c1421be21c62a36c64c7b77e98ffc1bf5ef3d94dcd",
+          "sweep_ts": 1739033811,
+          "hot_wallet": "TUpHuDkiCCmwaTZBHZvQdwWzGNm5t8J2b9",
+          "hot_label": "labeled <- graphsense-tagpacks@7f9a5d1f/exchange-wallets-kucoin.yaml <- https://www.kucoin.com/blog/transparency-and-trust-a-detailed-list-of-kucoin-s-wallets",
+          "distinct_senders": 19,
+          "senders_truncated": false,
+          "deposit_event": {
+            "tx": "b465187217122c2f878a0dd1bc79e4fb9dc80fd025a316d298b0b6da59b57198",
+            "ts": 1738944768,
+            "asset": "USDT",
+            "amount": 99900.0
+          },
+          "sweep": "proven"
+        }
+      ]
+    },
+    {
+      "suspect": "TFqo5f16FJfSKesPxtGN4VN5HNZJebqMQX",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 133,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TGUPpmW2bAnMCLe5ih2CFisfCHk4gTFDsx",
+      "ofac_entity": "ofac-ansarallah",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 139,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TCUTmWspsaJb3U5JUs5AhVcGwaftyK1qtp",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 20,
+      "reason": "no further outgoing value",
+      "sweep": []
+    },
+    {
+      "suspect": "TAhwhFv3JpK39Nc2m8W5LPCcoTisutiRfp",
+      "ofac_entity": "ofac-bankmarkazijomhouriislamiiran",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 42,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TCqKhk7MpPnGH3UfygE1TRzUo92a5tuVy6",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 63,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TGLrjZc9c48iMFB4ZmDnSjSRMq27MXPg2k",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 26,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TA82wQ77kb9DieW4C8q7C4KwMfnCzfziqN",
+      "ofac_entity": "ofac-isilkhorasan",
+      "result": "UNATTRIBUTED",
+      "entity": null,
+      "hops": null,
+      "endpoint": null,
+      "role_basis": null,
+      "calls": 64,
+      "reason": "hop budget (5) exhausted",
+      "sweep": []
+    },
+    {
+      "suspect": "TBHTJqAy4DhHhmT3dNceJYNRz4SdLofLre",
+      "ofac_entity": "ofac-wangyunhe",
+      "result": "ATTRIBUTED_INFRA",
+      "entity": "binance",
+      "hops": 1,
+      "endpoint": "TV6MuMXfmLbBqPZvBHdwFsDnQeVfnmiuSi",
+      "role_basis": "hot:labeled",
+      "calls": 1,
+      "reason": null,
+      "sweep": []
+    }
+  ]
+}

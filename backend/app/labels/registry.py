@@ -22,8 +22,8 @@ TOKEN = "token"
 
 
 def addr_key(chain: str, address: str) -> str:
-    # EVM + bech32 are case-insensitive; base58 (1…/3…) is case-sensitive and kept verbatim.
-    return address.lower() if chain != "btc" or address[:3].lower() == "bc1" else address
+    # EVM hex + bech32 are case-insensitive; base58 (BTC 1…/3…, Tron T…) is case-sensitive, kept verbatim.
+    return address.lower() if address[:2].lower() == "0x" or address[:3].lower() == "bc1" else address
 
 
 # Shape only — these say "this string could be an address on this chain", never "this address
@@ -31,10 +31,11 @@ def addr_key(chain: str, address: str) -> str:
 # burns provider calls to discover the address was never real (§15 input validation at the edge).
 _BTC = re.compile(r"^(?:[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-z0-9]{11,71})$")
 _EVM = re.compile(r"^0x[0-9a-fA-F]{40}$")
+_TRON = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
 
 
 def valid_address(chain: str, address: str) -> bool:
-    return bool((_BTC if chain == "btc" else _EVM).match(address or ""))
+    return bool({"btc": _BTC, "tron": _TRON}.get(chain, _EVM).match(address or ""))
 
 
 def norm(name: str) -> str:

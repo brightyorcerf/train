@@ -12,11 +12,12 @@ import time
 
 from app.boundary import bridge
 from app.labels.propagate import SameOwner, propagate, same_owner_edges
-from app.labels.registry import BRIDGE, DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry
+from app.labels.registry import BRIDGE, DEPOSIT, DEX, MIXER, SANCTIONED, PgRegistry, addr_key
 from app.labels.sweep import btc_sweep_proof, evm_sweep_proof
 from app.providers.base import Edge, ProviderError
 from app.providers.esplora import EsploraProvider
 from app.providers.etherscan_v2 import EtherscanV2Provider
+from app.providers.tron import TronGridProvider
 
 HARD_MAX_HOPS, MAX_CALLS = 5, 200
 HUB_MIN_RECEIPTS = 1000   # ponytail: §9.3 unlabeled-hub threshold; a knob, not a finding
@@ -27,6 +28,8 @@ FULL_CLAIM = {"ground_truth", "exchange_published_deposit", "sweep_proven"}
 def make_provider(chain: str, until_block: int, offline=False):
     if chain == "btc":
         return EsploraProvider(snapshot=until_block, offline=offline)
+    if chain == "tron":
+        return TronGridProvider(offline=offline)
     return EtherscanV2Provider(chain, offline=offline)
 
 
@@ -141,7 +144,7 @@ class Tracer:
             n_rx = self.prov.address_stats(addr)["funded_txo_count"]
             if n_rx >= HUB_MIN_RECEIPTS:
                 return None, {"boundary": f"service_hub_boundary:{addr}({n_rx} receipts, hop {node['hop']})"}, True
-        elif addr.lower() in self.prov.truncated:
+        elif addr_key(self.chain, addr) in self.prov.truncated:
             return None, {"boundary": f"service_hub_boundary:{addr}(>{self.prov.page_cap}k movements, "
                                       f"hop {node['hop']})"}, True
         return None, ev, False
@@ -247,7 +250,7 @@ class Tracer:
         if self.chain == "btc":
             return []
         back = [e for e in self.prov.movements(node["addr"], self.until, node["since"])
-                if e.tx_hash == m["hash"] and e.dst == node["addr"].lower() and e.asset != m["asset"]]
+                if e.tx_hash == m["hash"] and e.dst == addr_key(self.chain, node["addr"]) and e.asset != m["asset"]]
         out = []
         for e in sorted(back, key=lambda e: -e.value)[:1]:
             if (node["addr"], e.asset) in self._swapped:

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createCase, DEMO_SNAPSHOT } from '../api/client'
 
-const CHAINS = ['btc', 'eth', 'polygon'] as const
+const CHAINS = ['btc', 'eth', 'polygon', 'tron'] as const
 
 /** One or more wallets under ONE snapshot — multi-wallet is what makes §8 convergence reachable.
  *  The golden cases are no longer buttons here: they live in the landing gallery, pinned to the

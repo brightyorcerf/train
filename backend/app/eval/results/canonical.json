@@ -4,28 +4,28 @@
   "weight_hash": "w-75bf07eaee79",
   "weights_frozen_at": "2026-09-12",
   "label_set_version": [
-    "ls-56616bc26d3d"
+    "ls-dd778ec3dbfa"
   ],
   "separation_tau": 10,
   "crown_floor": 50,
   "golden": {
-    "cases": 8,
-    "scored": 8,
+    "cases": 9,
+    "scored": 9,
     "not_scored": 0,
-    "correct": 7,
-    "discovery": 5,
-    "discovery_correct": 4,
+    "correct": 8,
+    "discovery": 6,
+    "discovery_correct": 5,
     "confusers": 3,
     "confusers_correct": 3,
-    "stable": 160,
-    "profiles": 160,
+    "stable": 180,
+    "profiles": 180,
     "contested": 1,
     "contested_stable": 20,
     "contested_profiles": 20,
-    "calls": 874,
+    "calls": 1078,
     "upstream": 0
   },
-  "headline": "7 of 8 decided as documented; correct VASP #1 in 4 of 5 discovery cases; 3 of 3 confusers refused",
+  "headline": "8 of 9 decided as documented; correct VASP #1 in 5 of 6 discovery cases; 3 of 3 confusers refused",
   "cases": [
     {
       "id": "polyanin-revil-binance",
@@ -43,7 +43,7 @@
       "hops": 4,
       "calls": 200,
       "upstream": 0,
-      "wall_s": 1.0,
+      "wall_s": 9.9,
       "rank_stable": "20/20"
     },
     {
@@ -62,7 +62,7 @@
       "hops": 1,
       "calls": 93,
       "upstream": 0,
-      "wall_s": 0.4,
+      "wall_s": 0.3,
       "rank_stable": "20/20"
     },
     {
@@ -85,7 +85,7 @@
       "hops": 3,
       "calls": 178,
       "upstream": 0,
-      "wall_s": 1.7,
+      "wall_s": 1.4,
       "rank_stable": "20/20"
     },
     {
@@ -123,7 +123,26 @@
       "hops": 2,
       "calls": 94,
       "upstream": 0,
-      "wall_s": 0.8,
+      "wall_s": 0.7,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "aljebouri-kucoin-tron",
+      "chain": "tron",
+      "expect": "ATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "ATTRIBUTED",
+      "recommended": "kucoin",
+      "ranked": [
+        [
+          "kucoin",
+          66
+        ]
+      ],
+      "hops": 2,
+      "calls": 204,
+      "upstream": 0,
+      "wall_s": 0.9,
       "rank_stable": "20/20"
     },
     {
@@ -137,7 +156,7 @@
       "hops": null,
       "calls": 92,
       "upstream": 0,
-      "wall_s": 0.8,
+      "wall_s": 0.7,
       "rank_stable": "20/20"
     },
     {
@@ -151,7 +170,7 @@
       "hops": null,
       "calls": 19,
       "upstream": 0,
-      "wall_s": 1.9,
+      "wall_s": 1.7,
       "rank_stable": "20/20"
     },
     {
@@ -174,9 +193,10 @@
     "hops": 2,
     "calls": 94,
     "upstream": 0,
-    "wall_s": 0.8
+    "wall_s": 0.7
   },
   "cliff_edge": [
-    "polyanin-revil-binance"
+    "polyanin-revil-binance",
+    "aljebouri-kucoin-tron"
   ]
 }

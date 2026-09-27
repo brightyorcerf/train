@@ -18,7 +18,7 @@ CONSTRAINTS = [
     "CREATE CONSTRAINT vasp_key IF NOT EXISTS FOR (v:VASP) REQUIRE v.id IS UNIQUE",
     "CREATE INDEX address_labeled IF NOT EXISTS FOR (a:Address) ON (a.is_labeled)",
 ]
-ACCOUNT_KINDS = ("native", "internal", "erc20")
+ACCOUNT_KINDS = ("native", "internal", "erc20", "trc20")
 
 
 class Graph:

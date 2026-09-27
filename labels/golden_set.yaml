@@ -80,6 +80,19 @@
     is solely theirs. distinct_senders on the sweep is reported as 27 with senders_truncated=true,
     so 27 is a floor, not a count.
   source_doc: OFAC SDN sdn_advanced.xml, listed 2023-04-24, individual:DPRK3 (Wu Huihui)
+- id: aljebouri-kucoin-tron
+  title: Zaid Issam Ahmed Al-Jebouri · SDGT (USDT on Tron)
+  suspect_addr: THJUJFyTnrBWb1ijWav7qfRBrjUuKgP49Z
+  chain: tron
+  until_block: 1790467200   # Tron snapshot is unix seconds (2026-09-27 00:00 UTC), providers/tron.py
+  expect: ATTRIBUTED
+  expected_entity: kucoin     # SAHYOG-onboarded: the portal route, not MLAT
+  min_hops: 2
+  endpoint: TCMC2p5HqYj5fN7vNPEXsEuT4DWMfaT1a1   # sweep_proven: 19 senders, first 3 USDT spends 100% -> KuCoin
+                                                  # published reserve TUpHuD… (sweep tx 33d686df…, block 69460624)
+  caveat: hop 1 is TAhHpx…, a second OFAC-listed address of the SAME person, so from the sanctioned cluster
+    this is 1 hop to KuCoin. Found by scripts/golden_discovery_tron.py, verified by hand on-chain 2026-09-27.
+  source_doc: OFAC SDN 2026-07-23 (Al-Jebouri Zaid Issam Ahmed, SDGT), sdn_advanced.xml issued 2026-09-10
 - id: hydramarket-coinjoin-confuser
   title: Hydra Market · darknet marketplace
   suspect_addr: 123WBUDmSJv4GctdVEz6Qq6z8nXSKrJ4KX

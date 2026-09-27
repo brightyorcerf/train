@@ -377,7 +377,7 @@ export const createCase = (body: {
 /** The snapshots the stored/golden data is pinned to. Submitting without a snapshot makes the API
  *  pin the live chain tip, which lands outside the raw store and forces live provider calls — the
  *  opposite of the offline demo path (DEMO §1). */
-export const DEMO_SNAPSHOT: Record<string, number> = { btc: 966946, eth: 25906777, polygon: 93439913 }
+export const DEMO_SNAPSHOT: Record<string, number> = { btc: 966946, eth: 25906777, polygon: 93439913, tron: 1790467200 }  // tron: unix seconds (providers/tron.py)
 
 /** Poll until every trace leaves the running states. onTick sees each poll, for the HUD.
  *

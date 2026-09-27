@@ -11,7 +11,7 @@ consolidation that piggy-backed a 0.0097 BTC side output. _selfcheck pins all th
 """
 from dataclasses import dataclass
 
-from app.labels.registry import DEPOSIT, SOURCE_TIER, Label, Registry
+from app.labels.registry import DEPOSIT, SOURCE_TIER, Label, Registry, addr_key
 from app.providers.base import TxRecord
 
 SWEEP_SHARE = 0.9
@@ -112,7 +112,7 @@ def evm_sweep_proof(prov, reg: Registry, address: str, out_edges, until_block: i
     hot_lab = reg.best(chain, hot[0])
     ev = {"entity": entity, "share": round(share, 4), "asset": g.asset, "sweep_tx": g.tx_hash, "sweep_ts": g.ts,
           "hot_wallet": hot[0], "hot_label": f"{hot_lab.basis} <- {hot_lab.provenance}",
-          "distinct_senders": len(senders), "senders_truncated": address.lower() in prov.truncated}
+          "distinct_senders": len(senders), "senders_truncated": addr_key(chain, address) in prov.truncated}
     if deposit_edge is not None:  # §6.4 deposit-event artifact
         ev["deposit_event"] = {"tx": deposit_edge.tx_hash, "ts": deposit_edge.ts, "asset": deposit_edge.asset,
                                "amount": deposit_edge.value / 10 ** deposit_edge.meta["decimals"]}

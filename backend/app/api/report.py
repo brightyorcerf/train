@@ -120,6 +120,8 @@ def build_html(result: dict, hashes: list[dict] | None = None, reg: PgRegistry |
     reg = reg or PgRegistry((result.get("pins") or {}).get("label_set_version"))
     e = _html.escape
     pins = result.get("pins", {})
+    # Tron has no block height in TronGrid's TRC-20 rows; its snapshot is unix seconds (providers/tron.py)
+    snap_label = "snapshot (unix time, UTC)" if result.get("chain") == "tron" else "snapshot block"
     rec = result.get("recommended")
     cands = result.get("vasp_candidates", [])
     top = next((c for c in cands if c["entity"] == rec), None)
@@ -200,7 +202,7 @@ endpoint is the VASP's KYC under a lawful request.</div>
 
 <h2>Determinism pins (§12)</h2>
 <table class="pins"><tbody>
-<tr><td>snapshot block</td><td class="mono">{e(str(pins.get("snapshot_block")))}</td></tr>
+<tr><td>{snap_label}</td><td class="mono">{e(str(pins.get("snapshot_block")))}</td></tr>
 <tr><td>label set version</td><td class="mono">{e(str(pins.get("label_set_version")))}</td></tr>
 <tr><td>weight hash</td><td class="mono">{e(str(pins.get("weight_hash")))} (frozen {e(str(pins.get("weights_frozen_at")))})</td></tr>
 <tr><td>adapter version</td><td class="mono">{e(str(pins.get("adapter_version")))}</td></tr>

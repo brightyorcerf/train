@@ -199,7 +199,7 @@ export function GraphView({ r, techs, autoplay = true }: { r: TraceResult; techs
   /** Element ids along the attributed path, per path hop (1-based), in the graph's own id scheme. */
   const pathIds = useMemo(() => path.map((h) => btc
     ? { nodes: [h.from, `tx:${h.tx}`, h.to], edges: [`${h.from}>tx:${h.tx}>funds`, `tx:${h.tx}>${h.to}>credits`] }
-    : { nodes: [h.from, h.to], edges: [`${h.from}>${h.to}>native`, `${h.from}>${h.to}>erc20`, `${h.from}>${h.to}>internal`] }),
+    : { nodes: [h.from, h.to], edges: [`${h.from}>${h.to}>native`, `${h.from}>${h.to}>erc20`, `${h.from}>${h.to}>trc20`, `${h.from}>${h.to}>internal`] }),
   [path, btc])
 
   /** The spine: suspect, every ranked candidate's path, boundaries, labeled endpoints. The leaves

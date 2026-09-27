@@ -56,7 +56,7 @@ app = FastAPI(
                 "the account holder. Investigative lead, not identity and not evidence (§15).",
 )
 
-Chain = Literal["btc", "eth", "polygon"]
+Chain = Literal["btc", "eth", "polygon", "tron"]
 
 
 class CaseRequest(BaseModel):
