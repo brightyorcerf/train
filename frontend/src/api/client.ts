@@ -279,7 +279,6 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const listCases = (limit = 50) => get<{ cases: CaseRow[] }>(`/cases?limit=${limit}`)
 export const traceStatus = (id: string) => get<Status>(`/trace/${id}/status`)
 export const traceResult = (id: string) => get<TraceResult>(`/trace/${id}`)
-export const timeline = (id: string) => get<Record<string, unknown>>(`/trace/${id}/timeline`)
 export const provenance = (id: string) => get<Provenance>(`/trace/${id}/provenance`)
 export const traceGraph = (id: string) => get<TraceGraph>(`/trace/${id}/graph`)
 export const onboarding = (entity: string) => get<Onboarding>(`/sahyog/onboarding/${entity}`)

@@ -40,19 +40,17 @@ return math.ceil((cost - tokens) / rate * 1000)   -- ms to wait
 class RateLimiter:
     """acquire(name) blocks until this process may make one call to that provider."""
 
-    def __init__(self, url: str | None = None, limits: dict | None = None, prefix="rl"):
+    def __init__(self, url: str | None = None):
         self.r = redis.Redis.from_url(url or settings.redis_url)
-        self.limits = limits or LIMITS
-        self.prefix = prefix
         self._take = self.r.register_script(_TAKE)
         self.waited = 0.0
         self.waits = 0
 
     def acquire(self, name: str, cost: int = 1, max_wait: float = 60.0) -> float:
-        rate, cap = self.limits.get(name, (2.0, 1))
+        rate, cap = LIMITS.get(name, (2.0, 1))
         t0 = time.time()
         while True:
-            ms = int(self._take(keys=[f"{self.prefix}:{name}"], args=[rate, cap, cost, time.time()]))
+            ms = int(self._take(keys=[f"rl:{name}"], args=[rate, cap, cost, time.time()]))
             if ms == 0:
                 w = time.time() - t0
                 self.waited += w
@@ -67,16 +65,12 @@ class RateLimiter:
         limit = DAILY.get(name)
         if not limit:
             return 0
-        k = f"{self.prefix}:quota:{name}:{time.strftime('%Y-%m-%d', time.gmtime())}"
+        k = f"rl:quota:{name}:{time.strftime('%Y-%m-%d', time.gmtime())}"
         used = self.r.incrby(k, n)
         self.r.expire(k, 172800)
         if used > limit:
             raise RuntimeError(f"{name}: daily free quota {limit} exhausted ({used} used)")
         return used
-
-    def used_today(self, name: str) -> int:
-        k = f"{self.prefix}:quota:{name}:{time.strftime('%Y-%m-%d', time.gmtime())}"
-        return int(self.r.get(k) or 0)
 
 
 def open_limiter(url: str | None = None):

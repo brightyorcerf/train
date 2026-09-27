@@ -28,9 +28,6 @@ from app.labels.registry import Label, PgRegistry
 from app.trace.engine import HARD_MAX_HOPS, MAX_CALLS, Tracer, _hit
 from worker.celery_app import app
 
-STATES = ("QUEUED", "FETCHING", "SCORING", "DONE", "FAILED")
-
-
 # ---------- case / job bookkeeping (§7.6, §12 pins) ----------
 def open_case(wallet: str, chain: str, snapshot: int, label_set: str | None = None, source="manual",
               params: dict | None = None) -> tuple[str, str, dict]:
@@ -304,15 +301,6 @@ def _tracer(ctx, labels=()) -> Tracer:
     for d in labels or ():        # labels earlier hops derived, so this hop can see them (§6.2b/c)
         t.reg.add_label(Label(**d))
     return t
-
-
-def start_trace(wallet: str, chain: str, snapshot: int, max_hops=4, fanout=5, label_set=None, graph=False,
-                offline=False, source="manual", collect_all=False) -> dict:
-    """Create the case + job (pins recorded), then kick off hop 1. Returns ids immediately (202, §14)."""
-    case_id, trace_id, pins = open_case(wallet, chain, snapshot, label_set, source,
-                                        {"max_hops": max_hops, "fanout": fanout})
-    return dispatch_trace(case_id, trace_id, pins, wallet, chain, snapshot, max_hops, fanout,
-                          graph=graph, offline=offline, collect_all=collect_all)
 
 
 def dispatch_trace(case_id: str, trace_id: str, pins: dict, wallet: str, chain: str, snapshot: int,

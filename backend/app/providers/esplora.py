@@ -1,6 +1,6 @@
 """BTC via Esplora: mempool.space primary -> blockstream.info failover (§8).
 
-Transactions are :Tx hypernodes (§7.3): get_outgoing emits address -FUNDS-> tx and
+Transactions are :Tx hypernodes (§7.3): tx_edges emits address -FUNDS-> tx and
 tx -CREDITS-> address edges, never fabricated address->address pairs. Every CREDITS edge is
 annotated with change detection (§7.5) and the tx with a CoinJoin check (§7.4).
 
@@ -14,45 +14,24 @@ Every read goes through the §12 raw store first (providers/store.py): `calls` c
 (the trace budget — identical live or replayed), `upstream` counts network requests.
 """
 import time
-from collections import Counter
 
 import httpx
 
 from app.boundary.change import coinjoin_reason, detect_change
 from app.core.config import settings
-from app.core.ratelimit import open_limiter
-from app.providers.base import (
-    IMMUTABLE,
-    BlockchainProvider,
-    Edge,
-    ProviderError,
-    TxIn,
-    TxOut,
-    TxRecord,
-)
-from app.providers.store import body_hash, open_store
+from app.providers.base import IMMUTABLE, Edge, Provider, ProviderError, TxIn, TxOut, TxRecord
 
 
-class EsploraProvider(BlockchainProvider):
+class EsploraProvider(Provider):
     chain = "btc"
 
     def __init__(self, bases=None, min_interval=0.5, timeout=10.0, cooldown=120.0, slow=8.0,
                  store="auto", offline=False, snapshot: int | None = None, limiter="auto"):
+        super().__init__(store, offline, limiter)
         self.bases = bases or [settings.mempool_base_url, settings.esplora_base_url]
         self.min_interval, self.cooldown, self.slow = min_interval, cooldown, slow
-        self.store = open_store() if store == "auto" else store   # None/False = uncached (drills)
-        self.offline = offline            # serve only from the store (§11.2 offline fixture mode)
         self.snapshot = snapshot          # scope for volatile reads that take no until_block (stats)
-        self.limiter = open_limiter() if limiter == "auto" else limiter
-        self.calls, self.upstream, self.store_hits, self.stale = 0, 0, 0, []
-        self.requests: list[str] = []        # every logical read, in order (§12)
-        # sha256 of each response BODY, in read order. The audit-log provenance hash is built
-        # from these: hashing the request URLs proved only which questions were asked, never
-        # what came back, so it could not detect changed upstream data (§12 reproduce-and-verify).
-        self.body_hashes: list[str] = []
-        self.calls_by, self.trips = Counter(), Counter()
         self.down_until: dict[str, float] = {}
-        self.truncated: set[str] = set()   # addresses whose history exceeded the page cap
         self._last: dict[str, float] = {}
         self._ann: dict[str, dict] = {}      # change/CoinJoin verdict per tx (stats lookups cost calls)
         self._cache: dict[str, object] = {}  # in-process memo over the store (confirmed txs, outspends)
@@ -77,23 +56,13 @@ class EsploraProvider(BlockchainProvider):
         try:
             j = self._fetch(path)
         except ProviderError:
-            # §8: on 429 / provider down, serve the last stored answer and mark the result partial —
-            # never a stack trace on stage. A stale answer may pre-date the snapshot: say so.
-            old = self.store.latest(req) if self.store else None
-            if not old:
+            if (body := self._stale(req, path)) is None:
                 raise
-            body, sc, at = old
-            self.stale.append(f"{path} (stored {at:%Y-%m-%d %H:%M} under {sc})")
-            return self._seen(body)
+            return body
         sc = keep(j) if keep else (scopes[0] if scopes else None)
         if self.store and sc:
             self.store.put(req, sc, "esplora", j)
         return self._seen(j)
-
-    def _seen(self, body):
-        """Record the content hash of one response body (§12 provenance) and hand it back."""
-        self.body_hashes.append(body_hash(body))
-        return body
 
     def _fetch(self, path: str):
         now = time.time()
@@ -127,7 +96,6 @@ class EsploraProvider(BlockchainProvider):
 
     def _trip(self, base: str) -> None:
         self.down_until[base] = time.time() + self.cooldown
-        self.trips[base] += 1
 
     # ---------- raw queries ----------
     def get_tx(self, tx_hash: str) -> TxRecord:
@@ -213,13 +181,6 @@ class EsploraProvider(BlockchainProvider):
                 edges.append(Edge(tx.hash, o.address, "credits", tx.hash, o.value, "BTC", tx.block, tx.ts,
                                   o.vout, meta))
         return edges
-
-    def get_outgoing(self, address: str, until_block: int, since_block: int = 0) -> list[Edge]:
-        return [e for t in self.spends(address, until_block, since_block) for e in self.tx_edges(t)]
-
-    def get_neighbors(self, address: str, until_block: int, since_block: int = 0) -> list[str]:
-        return sorted({e.dst for e in self.get_outgoing(address, until_block, since_block)
-                       if e.kind == "credits" and "change" not in e.meta and e.dst != address})
 
 
 def _order(t: TxRecord):

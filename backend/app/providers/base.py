@@ -1,10 +1,15 @@
-"""Provider abstraction (architecture §8). A new chain is a new provider file, not a new engine.
+"""Provider data model (architecture §8) and the bookkeeping both chain adapters share.
 
 Deviation from the §8 sketch: methods are sync, not async. Workers are Celery (sync) and
 parallelism comes from chord fan-out (§9.2), so async here would only add run()/to_thread glue.
+There is no abstract provider interface: the engine drives BTC and EVM through different methods
+(hypernode UTXO walk vs account movements), so an ABC over them would describe nothing it calls.
 """
-from abc import ABC, abstractmethod
+from collections import Counter
 from dataclasses import dataclass, field
+
+from app.core.ratelimit import open_limiter
+from app.providers.store import body_hash, open_store
 
 IMMUTABLE = "immutable"
 
@@ -67,17 +72,36 @@ class Edge:
     meta: dict = field(default_factory=dict, compare=False, hash=False)
 
 
-class BlockchainProvider(ABC):
-    chain: str
+class Provider:
+    """Counters (§12 budget), response-body provenance and the §8 stale fallback, for both adapters.
+    `calls` counts logical requests (the trace budget, identical live or replayed), `upstream`
+    counts network requests."""
 
-    @abstractmethod
-    def get_outgoing(self, address: str, until_block: int, since_block: int = 0) -> list[Edge]:
-        """Every outgoing movement from address with since_block <= block <= until_block."""
+    def __init__(self, store="auto", offline=False, limiter="auto"):
+        self.store = open_store() if store == "auto" else store   # None/False = uncached (drills)
+        self.offline = offline            # serve only from the store (§11.2 offline fixture mode)
+        self.limiter = open_limiter() if limiter == "auto" else limiter
+        self.calls, self.upstream, self.store_hits = 0, 0, 0
+        self.stale: list[str] = []
+        self.requests: list[str] = []        # every logical read, in order (§12)
+        # sha256 of each response BODY, in read order. The audit-log provenance hash is built
+        # from these: hashing the request URLs proved only which questions were asked, never
+        # what came back, so it could not detect changed upstream data (§12 reproduce-and-verify).
+        self.body_hashes: list[str] = []
+        self.calls_by = Counter()
+        self.truncated: set[str] = set()   # addresses whose history exceeded the page cap
 
-    @abstractmethod
-    def get_tx(self, tx_hash: str) -> TxRecord:
-        """Full transaction (UTXO: every input and output)."""
+    def _seen(self, body):
+        """Record the content hash of one response body (§12 provenance) and hand it back."""
+        self.body_hashes.append(body_hash(body))
+        return body
 
-    @abstractmethod
-    def get_neighbors(self, address: str, until_block: int, since_block: int = 0) -> list[str]:
-        """Addresses that received value from address in the window."""
+    def _stale(self, req: str, label: str):
+        """§8: on 429 / provider down, the last stored answer under ANY scope, or None. The read is
+        recorded in `stale`, which marks the result partial: it may pre-date the snapshot."""
+        old = self.store.latest(req) if self.store else None
+        if not old:
+            return None
+        body, sc, at = old
+        self.stale.append(f"{label} (stored {at:%Y-%m-%d %H:%M} under {sc})")
+        return self._seen(body)

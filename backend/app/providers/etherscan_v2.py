@@ -20,25 +20,14 @@ Conditional fetch (§9.1 — calls/expansion is the budget):
                            approved spender with the approval outside the window is missed.
 Pagination: 1,000 rows/request (free tier); windows advance by startblock and dedupe the boundary
 block. More than `page_cap` pages -> address marked truncated (a hub; §9.1 deterministic truncation).
-Free tier (measured, day1_ratetest.py): 3 req/s server-enforced, paced 2.5/s + retry.
+Free tier (measured day 1): 3 req/s server-enforced, paced 2.5/s + retry.
 """
 import time
-from collections import Counter
 
 import httpx
 
 from app.core.config import settings
-from app.core.ratelimit import open_limiter
-from app.providers.base import (
-    IMMUTABLE,
-    BlockchainProvider,
-    Edge,
-    ProviderError,
-    TxIn,
-    TxOut,
-    TxRecord,
-)
-from app.providers.store import body_hash, open_store
+from app.providers.base import IMMUTABLE, Edge, Provider, ProviderError
 
 ES = "https://api.etherscan.io/v2/api"
 CHAIN_ID = {"eth": 1, "polygon": 137}
@@ -58,25 +47,17 @@ TOKENS = {
                 "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": "WETH",
                 "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": "WPOL"},
 }
-class EtherscanV2Provider(BlockchainProvider):
+
+
+class EtherscanV2Provider(Provider):
     def __init__(self, chain: str, store="auto", offline=False, page_cap: int = 5, finality: int = 128,
                  limiter="auto"):
         if chain not in CHAIN_ID:
             raise ValueError(f"{chain}: Etherscan free tier here covers {sorted(CHAIN_ID)} (BNB is not free)")
         if not settings.etherscan_api_key:
             raise ProviderError("ETHERSCAN_API_KEY is empty in .env (free: etherscan.io/myapikey)")
-        self.chain, self.page_cap, self.finality, self.offline = chain, page_cap, finality, offline
-        self.store = open_store() if store == "auto" else store
-        self.limiter = open_limiter() if limiter == "auto" else limiter
-        self.calls, self.upstream, self.store_hits, self.retries = 0, 0, 0, 0
-        self.stale: list[str] = []
-        self.requests: list[str] = []        # every logical read, in order (§12)
-        # sha256 of each response BODY, in read order. The audit-log provenance hash is built
-        # from these: hashing the request URLs proved only which questions were asked, never
-        # what came back, so it could not detect changed upstream data (§12 reproduce-and-verify).
-        self.body_hashes: list[str] = []
-        self.calls_by = Counter()          # per action
-        self.truncated: set[str] = set()
+        super().__init__(store, offline, limiter)
+        self.chain, self.page_cap, self.finality = chain, page_cap, finality
         self._tip: int | None = None
         self._last = 0.0
         self._memo: dict = {}
@@ -101,22 +82,14 @@ class EtherscanV2Provider(BlockchainProvider):
         try:
             res = self._fetch(params)
         except ProviderError:
-            old = self.store.latest(req) if self.store else None   # §8: 429 -> cache, mark partial
-            if not old:
+            if (body := self._stale(req, f"{req[:60]}…")) is None:
                 raise
-            body, sc, at = old
-            self.stale.append(f"{req[:60]}… (stored {at:%Y-%m-%d %H:%M})")
-            return self._seen(body)
+            return body
         if cacheable:
             self._memo[req] = res
             if self.store:
                 self.store.put(req, IMMUTABLE, "etherscan_v2", res)
         return self._seen(res)
-
-    def _seen(self, body):
-        """Record the content hash of one response body (§12 provenance) and hand it back."""
-        self.body_hashes.append(body_hash(body))
-        return body
 
     def _fetch(self, params):
         for attempt in range(5):
@@ -139,7 +112,7 @@ class EtherscanV2Provider(BlockchainProvider):
             j = r.json() if r.status_code == 200 else {"status": "0", "result": f"HTTP {r.status_code}"}
             res = j.get("result")
             if r.status_code == 429 or (isinstance(res, str) and "rate limit" in res.lower()):
-                self.retries += 1   # arrival jitter at 2.5/s still trips the 3/s window ~15% (day 1)
+                # arrival jitter at 2.5/s still trips the 3/s window ~15% (day 1)
                 err = str(res)
                 time.sleep(1.0 * (attempt + 1))
                 continue
@@ -239,21 +212,6 @@ class EtherscanV2Provider(BlockchainProvider):
         out += [e for e in _erc20(self.rows("tokentx", a, 0, before_block, "desc", max_pages), self.chain)
                 if e.dst == a]
         return out
-
-    def get_tx(self, tx_hash: str) -> TxRecord:
-        """Account-model tx as a 1-in/1-out record (native value only)."""
-        t = self._get(False, module="proxy", action="eth_getTransactionByHash", txhash=tx_hash)
-        block = int(t["blockNumber"], 16) if t.get("blockNumber") else None
-        ts = None
-        if block is not None:
-            ts = int(self._get(self._final(block), module="proxy", action="eth_getBlockByNumber", tag=hex(block),
-                               boolean="false")["timestamp"], 16)
-        v = int(t["value"], 16)
-        return TxRecord(tx_hash, self.chain, block, ts, (TxIn(t["from"].lower(), v, None, None),),
-                        (TxOut((t.get("to") or "").lower() or None, v, 0),))
-
-    def get_neighbors(self, address: str, until_block: int, since_block: int = 0) -> list[str]:
-        return sorted({e.dst for e in self.get_outgoing(address, until_block, since_block) if e.dst != address.lower()})
 
 
 def _erc20(rows, chain) -> list[Edge]:

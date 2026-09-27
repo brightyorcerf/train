@@ -24,10 +24,10 @@ RANK = {"ATTRIBUTED": 2, "ATTRIBUTED_INFRA": 1}
 FULL_CLAIM = {"ground_truth", "exchange_published_deposit", "sweep_proven"}
 
 
-def make_provider(chain: str, until_block: int, offline=False, **kw):
+def make_provider(chain: str, until_block: int, offline=False):
     if chain == "btc":
-        return EsploraProvider(snapshot=until_block, offline=offline, **kw)
-    return EtherscanV2Provider(chain, offline=offline, **kw)
+        return EsploraProvider(snapshot=until_block, offline=offline)
+    return EtherscanV2Provider(chain, offline=offline)
 
 
 class Tracer:
@@ -147,7 +147,7 @@ class Tracer:
         return None, ev, False
 
     # ---------- whole trace (sequential driver; tasks.py runs the same levels as chords) ----------
-    def run(self, wallet: str, since_block=0, max_hops=4, sink=None, on_level=None, collect_all=False) -> dict:
+    def run(self, wallet: str, since_block=0, max_hops=4, sink=None, collect_all=False) -> dict:
         """collect_all=True keeps walking the other branches after the first hit, so the attribution
         engine sees EVERY reachable endpoint (§10) instead of shortest-path-to-first-label. Hit nodes
         are never expanded either way — a labeled endpoint is a boundary (§9.3)."""
@@ -177,9 +177,7 @@ class Tracer:
                 if r["stop"]:
                     continue
                 nxt += self.absorb(r["moves"], node, hop, nodes, hits, flags)
-            new_labels = propagate(reg, chain, [SameOwner(*e) for e in so_edges])
-            if on_level:
-                on_level(hop, nxt, new_labels)
+            propagate(reg, chain, [SameOwner(*e) for e in so_edges])
             if hits and not collect_all:
                 reason = "hit"
                 break

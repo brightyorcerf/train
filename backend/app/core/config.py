@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,8 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # 2026-09-18: tokentx row identity now includes the contract + per-page ordinal (was "day6").
 ADAPTER_VERSION = "2026-09-18-esplora+etherscan-v2"
 
+_CHECKOUT = Path(__file__).resolve().parents[3]
+# Containers mount labels/ and vendor/ under REPO_ROOT (compose); host scripts use the checkout.
+REPO = Path(os.environ.get("REPO_ROOT") or _CHECKOUT)
 # Repo-root .env for host-side scripts; in containers compose injects env and the file is absent.
-_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+_ENV_FILE = _CHECKOUT / ".env"
 
 
 class Settings(BaseSettings):

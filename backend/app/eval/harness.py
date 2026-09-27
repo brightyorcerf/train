@@ -27,7 +27,6 @@ and still scored CORRECT because `recommended is None` — a pass on zero eviden
 """
 import argparse
 import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -35,6 +34,7 @@ from pathlib import Path
 import yaml
 
 from app.attribution.engine import attribute_result
+from app.core.config import REPO
 from app.scoring.weights import (
     FROZEN_AT,
     MIN_CROWN,
@@ -44,7 +44,6 @@ from app.scoring.weights import (
 )
 from app.trace.engine import MAX_CALLS, Tracer
 
-REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])
 GOLDEN = REPO / "labels" / "golden_set.yaml"
 SNAPSHOT = {"btc": 966553, "eth": 25906777, "polygon": 93439913}
 N_PROFILES = 20
@@ -93,16 +92,18 @@ def verdict(r: dict) -> str:
     return "ABSTAINED" if r["ambiguous"] else ("WRONG" if r["recommended"] else "MISSED")
 
 
+def top1_unchanged(trace: dict, base: str | None, n=N_PROFILES, pct=0.2) -> int:
+    """How many of n seeded ±pct weight profiles leave the crowned entity at `base`. Also what
+    POST /trace/{id}/rescore serves, so the slider and the shipped number are one computation."""
+    return sum(attribute_result(trace, weights=perturb(pct, seed=s))["recommended"] == base
+               for s in range(n))
+
+
 def stability(r: dict, n=N_PROFILES) -> tuple[int, int]:
     """Re-score the SAME trace under n perturbed (±20%) weight profiles. -> (unchanged, n)."""
     if "_trace" not in r or r["state"] in ("STORE_MISS", "ERROR"):
         return 0, 0
-    base = r["recommended"]
-    same = 0
-    for seed in range(n):
-        alt = attribute_result(r["_trace"], weights=perturb(0.2, seed=seed))
-        same += alt["recommended"] == base
-    return same, n
+    return top1_unchanged(r["_trace"], r["recommended"], n), n
 
 
 def summary(out: list[dict]) -> dict:
@@ -112,7 +113,7 @@ def summary(out: list[dict]) -> dict:
     discovery = [r for r in scored if r["expect"] == "ATTRIBUTED"]
     st = [stability(r) for r in scored]
     contested = [r for r in scored if len(r["ranked"]) >= 2]
-    c_st = [stability(r) for r in contested]
+    c_st = [s for r, s in zip(scored, st, strict=True) if len(r["ranked"]) >= 2]
     return {
         "cases": len(out), "scored": len(scored), "not_scored": len(out) - len(scored),
         "correct": sum(r["verdict"] == "CORRECT" for r in scored),

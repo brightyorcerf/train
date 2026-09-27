@@ -21,7 +21,6 @@ from app.db import connect, init_schema  # noqa: E402
 from app.db.edges import save_edges, save_txs  # noqa: E402
 from app.db.evidence import save_labels  # noqa: E402
 from app.graph.client import Graph  # noqa: E402
-from app.labels.registry import PgRegistry  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 ZHDANOVA, BTC_SNAPSHOT = "1Ljk8RNNabkZ9bfDYQBn98XfFozJhTjqcZ", 966553
@@ -101,23 +100,6 @@ def main():
           f"tx {dup[0][:14]}… has {dup[1]} movements in Postgres and {in_graph} in Neo4j")
     check("…and Postgres agrees with the adapter on that tx", dup[1] == len(multi), f"{len(multi)} from the adapter")
 
-    # candidate enumeration (§10) — the graph must find the endpoint the engine reported.
-    # Label policy is the same one rebuild_graph uses: pinned labels for every address reached.
-    reg = PgRegistry(conn=conn)
-    for chain in ("btc", "eth"):
-        addrs = [r[0] for r in conn.execute(
-            "SELECT src FROM edge WHERE chain=%s UNION SELECT dst FROM edge WHERE chain=%s", (chain, chain))]
-        g.merge_labels(chain, [l for a in sorted(addrs) for l in reg.lookup(chain, a)], reg.entities)
-    cands = g.candidates("btc", ZHDANOVA)
-    got = [c for c in cands if c["endpoint"] == btc_r["endpoint"]]
-    check("Cypher candidate enumeration finds the engine's endpoint at the same hop count (§10)",
-          got and got[0]["hops"] == btc_r["hops"],
-          f"{len(cands)} candidates; {btc_r['endpoint'][:12]}… at {got and got[0]['hops']} hops "
-          f"(engine: {btc_r['hops']})")
-    p = g.path("btc", ZHDANOVA, btc_r["endpoint"])
-    check("representative path alternates Address -> Tx -> Address (hypernode walk)",
-          p and p["rels"] == ["FUNDS", "CREDITS"] * (p["len"] // 2), f"{p and p['rels']}")
-
     # rebuild from Postgres alone (§7.6) — Neo4j is derived, and provably so
     before = g.counts()
     g.wipe()
@@ -128,10 +110,6 @@ def main():
           out.returncode == 0 and rebuilt.get("Tx") == before.get("Tx")
           and rebuilt.get("SENT") == before.get("SENT") and rebuilt.get("CREDITS") == before.get("CREDITS"),
           f"{out.stdout.strip().splitlines()[-1][:120] if out.stdout else out.stderr[-200:]}")
-    cands2 = g.candidates("btc", ZHDANOVA)
-    check("candidates identical after the rebuild",
-          [c["endpoint"] for c in cands2] == [c["endpoint"] for c in cands],
-          f"{len(cands2)} candidates")
 
     mem = subprocess.run(["docker", "stats", "--no-stream", "--format", "{{.Name}} {{.MemUsage}}",
                           "train-neo4j-1"], capture_output=True, text=True).stdout.strip()

@@ -11,22 +11,11 @@ disclosure can be routed through SAHYOG for them: `routable` is false and `route
 MLAT / direct legal process instead. A demo that quietly routed an un-onboarded VASP through the
 portal would be the one claim in this project that could not survive scrutiny (§18).
 """
-from pydantic import BaseModel, Field
-
 from app.labels.registry import PgRegistry
 
 SCHEMA_NOTE = ("ILLUSTRATIVE schema; the real SAHYOG payload is non-public and conformable under "
                "an MoU. This mock is a documented contract, never a live integration.")
 LEGAL_BASIS = "BNSS S.94 + IT Act S.79(3)(b)"
-
-
-class DisclosureRequest(BaseModel):
-    target_vasp: str = Field(description="resolved entity id, e.g. 'binance'")
-    suspect_addresses: list[str] = Field(min_length=1)
-    transaction_hashes: list[str] = []
-    deposit_events: list[dict] = []
-    provenance: list[dict] = []
-    case_reference: str | None = None
 
 
 def onboarding(entity_id: str, reg: PgRegistry | None = None) -> dict:

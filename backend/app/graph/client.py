@@ -83,18 +83,6 @@ class Graph:
             out |= {r["t"]: r["n"] for r in s.run("MATCH ()-[r]->() RETURN type(r) AS t, count(*) AS n")}
         return out
 
-    def candidates(self, chain: str, start: str, max_hops: int = 12) -> list[dict]:
-        """Every labeled endpoint reachable from start, with a REPRESENTATIVE path (§10 — this is not
-        the winner selector; ranking is). BTC paths alternate Address/Tx, so hops = relationships/2."""
-        with self.driver.session() as s:
-            return [r.data() for r in s.run(_CANDIDATES.replace("$$max", str(int(max_hops))),
-                                            chain=chain, start=start)]
-
-    def path(self, chain: str, start: str, endpoint: str, max_hops: int = 12) -> list[dict]:
-        with self.driver.session() as s:
-            r = s.run(_PATH.replace("$$max", str(int(max_hops))), chain=chain, start=start, dst=endpoint).single()
-            return r and r.data()
-
 
 _SENT = """
 UNWIND $rows AS r
@@ -131,21 +119,4 @@ MERGE (v:VASP {id:r.entity}) SET v.name=r.name, v.type=r.type, v.sahyog=r.sahyog
 MERGE (a)-[:HAS_LABEL]->(l:Label {role:r.role, entity:r.entity, source:r.source, basis:r.basis})
 SET l.confidence=r.confidence, l.provenance=r.provenance
 MERGE (l)-[:OF]->(v)
-"""
-_CANDIDATES = """
-MATCH (s:Address {chain:$chain, address:$start})
-MATCH (d:Address {chain:$chain, is_labeled:true}) WHERE d <> s
-MATCH p = shortestPath( (s)-[:SENT|FUNDS|CREDITS|SAME_OWNER*..$$max]->(d) )
-MATCH (d)-[:HAS_LABEL]->(l:Label)-[:OF]->(v:VASP)
-RETURN d.address AS endpoint, l.role AS role, l.basis AS basis, l.source AS source,
-       l.confidence AS confidence, v.id AS entity, v.sahyog AS sahyog,
-       length(p) AS rels, CASE WHEN $chain = 'btc' THEN length(p)/2 ELSE length(p) END AS hops
-ORDER BY hops, endpoint
-"""
-_PATH = """
-MATCH (s:Address {chain:$chain, address:$start}), (d:Address {chain:$chain, address:$dst})
-MATCH p = shortestPath( (s)-[:SENT|FUNDS|CREDITS|SAME_OWNER*..$$max]->(d) )
-RETURN [n IN nodes(p) | coalesce(n.address, n.hash)] AS nodes,
-       [r IN relationships(p) | type(r)] AS rels, length(p) AS len
-ORDER BY len LIMIT 1
 """

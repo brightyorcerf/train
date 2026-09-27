@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { provenance } from '../api/client'
 import type { Provenance, TraceResult } from '../api/client'
-
-const ts = (t: number) => new Date(t * 1000).toISOString().replace('T', ' ').slice(0, 19)
+import { ts } from '../fmt'
 
 /** Where every claim came from (§13) — the I4C-friendly reproducibility surface.
  *

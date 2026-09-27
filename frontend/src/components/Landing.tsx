@@ -3,8 +3,7 @@ import { benchmark, createCase } from '../api/client'
 import type { BenchCase, Benchmark } from '../api/client'
 import { NetworkCanvas } from './NetworkCanvas'
 import { TraceForm } from './TraceForm'
-
-const short = (a: string) => `${a.slice(0, 10)}…${a.slice(-6)}`
+import { short } from '../fmt'
 
 /** Landing: the pitch, the benchmark as a number, and the eight documented cases one click away.
  *

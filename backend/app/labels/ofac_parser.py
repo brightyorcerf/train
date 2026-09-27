@@ -14,8 +14,9 @@ from pathlib import Path
 
 import httpx
 
+from app.core.config import REPO
+
 URL = "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ADVANCED.XML"
-REPO = Path(__file__).resolve().parents[3]
 FIELDS = ["address", "chain", "entity_name", "category", "date_added", "source"]
 CHAIN = {"XBT": "btc", "ETH": "eth", "TRX": "tron", "BSC": "bsc", "ARB": "arb"}
 EVM_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")

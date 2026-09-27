@@ -3,6 +3,7 @@ import cytoscape from 'cytoscape'
 import type { Core, ElementDefinition } from 'cytoscape'
 import { streamTrace, traceGraph } from '../api/client'
 import type { GraphEdge, GraphNode, Technique, TraceGraph, TraceResult } from '../api/client'
+import { short } from '../fmt'
 
 /** GraphView (§13) — the investigation, told as the funds moved.
  *
@@ -26,7 +27,6 @@ const C = {
 const ROLE_COLOR: Record<string, string> = {
   mixer: C.red, sanctioned: C.red, bridge: C.amber, dex: C.amber, deposit: C.green, hot: C.green, unlabeled: C.line2,
 }
-const short = (a: string) => (a.length > 18 ? `${a.slice(0, 7)}…${a.slice(-4)}` : a)
 const STEP_MS = 2300
 const BOUNDARY = ['coinjoin', 'service_hub', 'mixer', 'bridge']
 
@@ -98,7 +98,7 @@ function build(nodes: GraphNode[], edges: GraphEdge[], pathNodes = new Set<strin
           glow: n.score ? Math.round(6 + (n.score / 100) * 14) : 0,
           label: n.kind === 'tx' ? (pathNodes.has(n.id) ? `tx ${n.label?.slice(0, 8)}` : '')
             : n.entity_name ? `${n.entity_name}${n.score ? ` · ${n.score}` : ''}`
-              : major ? short(n.id) : '',
+              : major ? short(n.id, 7, 4) : '',
           raw: n,
         },
         classes: pathNodes.has(n.id) ? 'path' : '',
@@ -238,7 +238,7 @@ export function GraphView({ r, techs, autoplay = true }: { r: TraceResult; techs
     const at = (h: number) => techs.filter((t) => t.hop === h)
     const out: Step[] = [{
       n: 0, reveal: 0, title: 'Suspect wallet', meta: r.wallet, focus: [r.wallet],
-      say: `Start at the suspect wallet ${short(r.wallet)}`, techs: at(0),
+      say: `Start at the suspect wallet ${short(r.wallet, 7, 4)}`, techs: at(0),
     }]
     if (path.length) {
       path.forEach((h, i) => {
@@ -246,8 +246,8 @@ export function GraphView({ r, techs, autoplay = true }: { r: TraceResult; techs
         out.push({
           n: i + 1, reveal: i + 1,
           title: `Hop ${i + 1} · ${+h.value.toFixed(6)} ${h.asset}`,
-          meta: `${short(h.from)} → ${short(h.to)} · tx ${h.tx.slice(0, 10)}… · ${new Date(h.ts * 1000).toISOString().slice(0, 16).replace('T', ' ')}`,
-          say: t.length ? `${t[0].title}: ${t[0].detail.split('; ')[0]}` : `${+h.value.toFixed(6)} ${h.asset} moves to ${short(h.to)}`,
+          meta: `${short(h.from, 7, 4)} → ${short(h.to, 7, 4)} · tx ${h.tx.slice(0, 10)}… · ${new Date(h.ts * 1000).toISOString().slice(0, 16).replace('T', ' ')}`,
+          say: t.length ? `${t[0].title}: ${t[0].detail.split('; ')[0]}` : `${+h.value.toFixed(6)} ${h.asset} moves to ${short(h.to, 7, 4)}`,
           focus: [...pathIds[i].nodes, ...pathIds[i].edges], techs: t,
         })
       })

@@ -1,6 +1,5 @@
 import type { CaseRow } from '../api/client'
-
-const short = (s: string) => `${s.slice(0, 10)}…${s.slice(-6)}`
+import { short } from '../fmt'
 
 function stateTag(row: CaseRow) {
   const s = row.result_state ?? row.state

@@ -41,7 +41,6 @@ def by_entity(candidates: list[dict], flags=(), weights: dict | None = None) -> 
         # The entity scores as its best single path — one coherent set of evidence, not a blend.
         best = sorted(per, key=lambda p: (-p["score"], p["cand"]["hops"], p["cand"]["endpoint"]))[0]
         idx, breakdown = score(best["factors"], best["penalty"], weights)
-        rep = best["cand"]
         nearest = min(cands, key=lambda c: (c["hops"], c["endpoint"]))
         out.append({
             "entity": entity, "entity_name": cands[0]["entity_name"], "sahyog": cands[0]["entity_sahyog"],
@@ -53,10 +52,6 @@ def by_entity(candidates: list[dict], flags=(), weights: dict | None = None) -> 
             "nearest": {"hops": nearest["hops"], "endpoint": nearest["endpoint"],
                         "role_basis": nearest["role_basis"], "deposit_event": nearest["deposit_event"],
                         "path": nearest["path"]},
-            "representative": {"endpoint": rep["endpoint"], "hops": rep["hops"], "role": rep["role"],
-                               "basis": rep["basis"], "tier": rep["tier"], "role_basis": rep["role_basis"],
-                               "label_source": rep["label_source"], "value": rep["value"],
-                               "asset": rep["asset"], "path": rep["path"], "sweep": rep["sweep"]},
             "endpoints": sorted(c["endpoint"] for c in cands)})
     return out
 

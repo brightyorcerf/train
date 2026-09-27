@@ -14,13 +14,12 @@ Sources and tiers (registry.SOURCE_TIER):
 import csv
 import hashlib
 import json
-import os
 import re
 import sys
-from pathlib import Path
 
 import yaml
 
+from app.core.config import REPO
 from app.labels.registry import (
     DEPOSIT,
     DEX,
@@ -35,8 +34,6 @@ from app.labels.registry import (
     norm,
 )
 
-# Containers mount labels/ and vendor/ under REPO_ROOT (compose); host scripts use the checkout.
-REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])
 LABELS = REPO / "labels"
 PACKS = REPO / "vendor" / "graphsense-tagpacks"
 TAGPACKS_COMMIT = "7f9a5d1f"  # inspected 2026-09-11 (scripts/tagpacks_inspection.md)

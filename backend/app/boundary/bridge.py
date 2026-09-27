@@ -9,15 +9,13 @@ transfer lives in that transaction's call data, which we do not decode (Ethersca
 deprecated). So `destinations` is the bridge's served set, never a per-transfer claim. Saying "went
 to Solana" without decoding would be a guess wearing a fact's clothes.
 """
-import os
 from functools import cache
-from pathlib import Path
 
 import yaml
 
+from app.core.config import REPO
 from app.labels.registry import BRIDGE, SOURCE_TIER, Label
 
-REPO = Path(os.environ.get("REPO_ROOT") or Path(__file__).resolve().parents[3])
 BRIDGES = REPO / "labels" / "bridges.yaml"
 
 

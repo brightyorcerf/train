@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { convergence } from '../api/client'
 import type { CaseRow, Convergence } from '../api/client'
-
-const short = (a: string) => (a.length > 20 ? `${a.slice(0, 10)}…${a.slice(-6)}` : a)
+import { short } from '../fmt'
 
 const ROLE_CLASS: Record<string, string> = {
   mixer: 'red', sanctioned: 'red', bridge: 'amber', dex: 'amber',

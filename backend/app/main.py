@@ -18,6 +18,7 @@ import re
 import time
 import uuid
 from contextlib import asynccontextmanager
+from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query, Response
@@ -32,6 +33,7 @@ from app.attribution.convergence import converge
 from app.attribution.engine import attribute_result
 from app.attribution.techniques import detect as detect_techniques
 from app.db import connect, init_schema
+from app.eval import harness
 from app.labels.registry import PgRegistry, valid_address
 from app.scoring.engine import score_candidate
 from app.scoring.weights import WEIGHTS, perturb, weight_hash
@@ -54,7 +56,7 @@ app = FastAPI(
                 "the account holder. Investigative lead, not identity and not evidence (§15).",
 )
 
-CHAINS = ("btc", "eth", "polygon")
+Chain = Literal["btc", "eth", "polygon"]
 
 
 class CaseRequest(BaseModel):
@@ -63,7 +65,7 @@ class CaseRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     wallets: list[str] = Field(min_length=1, max_length=10)
-    chain: str
+    chain: Chain
     snapshot_block: int | None = Field(default=None, ge=0)  # None -> pin the tip (§12: always pinned)
     max_hops: int = Field(default=HARD_MAX_HOPS, ge=1, le=HARD_MAX_HOPS)   # = the harness walk
     fanout: int = Field(default=5, ge=1, le=50)
@@ -88,14 +90,6 @@ class TraceRequest(BaseModel):
     case_id: UUID
 
 
-class DisclosureRequest(BaseModel):
-    """§14 posts the disclosure as a body. The query-parameter form stays accepted so the existing
-    console keeps working."""
-    model_config = ConfigDict(extra="forbid")
-    trace_id: UUID | None = None
-    case_reference: str | None = None
-
-
 class RescoreRequest(BaseModel):
     """A what-if over a STORED trace. Nothing here changes the frozen profile (§11.1)."""
     model_config = ConfigDict(extra="forbid")
@@ -103,12 +97,6 @@ class RescoreRequest(BaseModel):
     perturb_pct: float | None = Field(default=None, gt=0, le=1)
     seed: int = 0
     profiles: int | None = Field(default=None, ge=1, le=50)
-
-
-def _chain(chain: str) -> str:
-    if chain not in CHAINS:
-        raise HTTPException(400, f"unsupported chain {chain} (have {', '.join(CHAINS)})")
-    return chain
 
 
 def _address(chain: str, address: str) -> str:
@@ -141,7 +129,6 @@ def create_case(req: CaseRequest, response: Response):
     snapshot returns the existing case instead of a second one. Repeating the same request produced
     a new case and a fresh provider spend every time, which is how one demo wallet ended up with 32
     duplicate traces. `force: true` re-runs deliberately."""
-    _chain(req.chain)
     wallets = [_address(req.chain, w) for w in req.wallets]
     snapshot = req.snapshot_block or Tracer(req.chain, 10**9).until
     params = {"max_hops": req.max_hops, "fanout": req.fanout}
@@ -251,10 +238,9 @@ def trace_provenance(trace_id: UUID):
 
 # ---------- scoring (§11.1) ----------
 @app.get("/wallets/{address}/score")
-def wallet_score(address: str, chain: str = "btc"):
+def wallet_score(address: str, chain: Chain = "btc"):
     """Score a single ADDRESS from its pinned label, with no trace. This is the label's own
     evidence, not an attribution: there is no path, so proximity (§3 Axis 1) does not exist here."""
-    _chain(chain)
     address = _address(chain, address)
     reg = PgRegistry()
     lab = reg.best(chain, address)
@@ -294,8 +280,7 @@ def rescore(trace_id: UUID, req: RescoreRequest):
 
     if req.profiles:
         pct = req.perturb_pct or 0.2
-        same = sum(attribute_result(r, weights=perturb(pct, seed=s))["recommended"] == base_rec
-                   for s in range(req.profiles))
+        same = harness.top1_unchanged(r, base_rec, req.profiles, pct)
         return {"trace_id": str(trace_id), "base_recommended": base_rec,
                 "ranked": [{"entity": c["entity"], "entity_name": c.get("entity_name"),
                             "score": c["score"]} for c in r.get("vasp_candidates", [])],
@@ -506,10 +491,9 @@ def trace_stream(trace_id: UUID):
 
 # ---------- convergence (§8) ----------
 @app.get("/convergence")
-def convergence(trace_ids: str, chain: str = "btc", min_shared: int = Query(2, ge=1, le=100)):
+def convergence(trace_ids: str, chain: Chain = "btc", min_shared: int = Query(2, ge=1, le=100)):
     """Nodes appearing in >= min_shared of these traces' subgraphs — where separate complaints
     turn out to be one campaign."""
-    _chain(chain)
     ids = [t.strip() for t in trace_ids.split(",") if t.strip()]
     if len(ids) < 2:
         raise HTTPException(400, "convergence needs at least two trace_ids")
@@ -537,7 +521,6 @@ def benchmark():
     prints, offline from the raw store (0 upstream calls), so the number on screen is the shipped
     number. Cached per (frozen weights, golden file mtime): recomputing is ~8s of pure replay and
     the answer cannot change unless one of those does."""
-    from app.eval import harness
     key = (weight_hash(), harness.GOLDEN.stat().st_mtime)
     if key not in _BENCH:
         t0, out = time.time(), []
@@ -578,17 +561,12 @@ def sahyog_onboarding(entity_id: str):
 
 
 @app.post("/sahyog/disclosure")
-def sahyog_disclosure(trace_id: UUID | None = None, case_reference: str | None = None,
-                      body: DisclosureRequest | None = None):
+def sahyog_disclosure(trace_id: UUID, case_reference: str | None = None):
     """The §17 disclosure payload for a finished trace. If the engine abstained, no target is
     named. If the crowned VASP is not SAHYOG-onboarded, `routable_via_sahyog` is false and the
     payload says to use MLAT / direct legal process instead."""
-    tid = (body.trace_id if body and body.trace_id else trace_id)
-    ref = (body.case_reference if body and body.case_reference else case_reference)
-    if tid is None:
-        raise HTTPException(422, "trace_id is required (body {\"trace_id\": ...} or ?trace_id=)")
-    payload = sahyog_mock.disclosure_payload(_result(tid), ref)
-    return {"request_id": f"MOCK-{str(tid)[:8]}", "accepted": False,
+    payload = sahyog_mock.disclosure_payload(_result(trace_id), case_reference)
+    return {"request_id": f"MOCK-{str(trace_id)[:8]}", "accepted": False,
             "note": "MOCK endpoint: nothing was transmitted to SAHYOG or any VASP.",
             "disclosure_payload": payload}
 

@@ -1,6 +1,5 @@
 import type { TraceResult } from '../api/client'
-
-const ts = (t: number) => new Date(t * 1000).toISOString().replace('T', ' ').slice(0, 19)
+import { ts } from '../fmt'
 
 /** Axis 1: proximity. Deliberately a SEPARATE panel from the leaderboard — hops and confidence are
  *  two different claims (§3), and collapsing them into one number is the thing this project refuses. */
