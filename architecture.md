@@ -597,6 +597,9 @@ apparatus for a 14-day project.
   (stored raw responses, pinned label set). *Why the label version matters:* Tornado Cash was
   sanctioned 2022 and delisted 2025 — the same address flips sanctioned→clean by OFAC date,
   changing the penalty and the score. Pinning only the block snapshot leaves it non-deterministic.
+  *Shipped scope:* this is the rationale, not a demonstrated case. `address_label` carries no
+  date-validity column and no pinned label set holds a dated sanctioned→delisted pair, so the flip
+  itself is not modelled; the pinning that would make it deterministic is.
 - **Storage & hashing.** Store raw responses content-addressed (budget the storage);
   **canonicalize before hashing** (stable key order, strip volatile headers); apply the
   deterministic truncation rule (§9.1). Fetch-all → **discard `block > snapshot`** client-side

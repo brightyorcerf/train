@@ -15,7 +15,6 @@ including an abstained case and a CoinJoin trap the engine refuses to follow.
 
 - `architecture.md`: the spec and single source of truth (data model, scoring, invariants).
 - `DEMO.md`: the stage runbook.
-- `reportscratchpad.md`: the standing pre-launch audit, what is verified and what is open.
 
 ## What it is not
 

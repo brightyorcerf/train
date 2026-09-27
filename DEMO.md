@@ -159,7 +159,7 @@ Assign a name to each slot before the presentation — one owner per question, s
 
 ## 7. Language that is now wrong on stage
 
-The audit (`reportscratchpad.md`) cut these; do not let them back into the script.
+The pre-launch audit cut these; do not let them back into the script.
 
 | Do not say | Say instead |
 |---|---|

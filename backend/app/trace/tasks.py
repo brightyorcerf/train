@@ -244,7 +244,7 @@ def level_done(results: list[dict], ctx: dict, state: dict) -> dict:
 
     # §10 wants EVERY reachable endpoint ranked, and the eval harness measures exactly that
     # (collect_all=True). The API now defaults to it, so the shipped algorithm and the evaluated one
-    # are the same (closes reportscratchpad.md F12). It used to be off because per-task setup made a
+    # are the same (audit finding F12). It used to be off because per-task setup made a
     # full walk take 1901s on Case B; with the entity-row cache, one Neo4j driver per worker and
     # batched edge upserts, all 8 golden cases walk in full in 2.2-6.4s warm (measured 2026-09-26).
     # The first-hit stop stays available as collect_all=False.
