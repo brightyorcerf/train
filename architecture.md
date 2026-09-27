@@ -141,6 +141,7 @@ vasp-attribution/
 ├── .env.example                  # all secrets via env; none in repo
 ├── scripts/
 │   ├── day1_verify.py            # prove Case A traces on free HISTORICAL data + endpoint documented
+│   ├── parity_check.py           # live Celery driver must equal the sequential harness on all golden cases (§9.2)
 │   └── rebuild_graph.py          # rebuild Neo4j from Postgres (Neo4j is a derived index — §7.6)
 ├── labels/                       # curated label data, checked into git
 │   ├── ofac_sdn_crypto.csv       # authoritative sanctioned addresses (US Treasury)
@@ -169,7 +170,7 @@ vasp-attribution/
 │       │   └── sweep.py          # sweep-to-hot deposit-behaviour detection (§6.2c)
 │       ├── trace/{engine,bfs,tasks}.py             # state machine, frontier logic, Celery chords
 │       ├── graph/{client,queries}.py               # Neo4j driver + Cypher (MERGE, candidate enum)
-│       ├── attribution/{engine,aggregate,recommend}.py   # candidate → evidence → rank → recommend
+│       ├── attribution/{engine,aggregate,recommend,convergence,techniques}.py   # candidate → evidence → rank → recommend; techniques = per-hop laundering timeline (§10.1)
 │       ├── scoring/{engine,rules,weights.py}       # frozen expert-prior weights (§11)
 │       ├── boundary/{mixer,bridge,dex,change}.py   # service-node policy (§9) + BTC change detection
 │       ├── typology/peeling.py                     # peel-chain detector — time-boxed, first to cut
@@ -179,9 +180,10 @@ vasp-attribution/
 │   └── worker/celery_app.py      # Celery app, Redis broker + backend
 └── frontend/                     # React + Vite + Cytoscape.js
     └── src/
-        ├── api/client.ts         # typed fetch + status polling
-        └── components/{TraceForm,CaseList,GraphView,Leaderboard,RecommendedTarget,
-                        NearestPanel,ScoreBreakdown,ProvenanceCard,ReportButton}.tsx
+        ├── api/client.ts         # typed fetch, status polling, EventSource for /stream
+        └── components/{Landing,TraceForm,RecentDrawer,CaseList,GraphView(+LiveGraph),Leaderboard,
+                        RecommendedTarget,NearestPanel,ScoreBreakdown,ProvenanceCard,ReportButton,
+                        ConvergencePanel,NetworkCanvas}.tsx
 ```
 
 `providers/tron.py` and the ABC are the physical proof of the "pluggable multi-chain" claim:
@@ -421,6 +423,21 @@ def fetch_neighbors(address, chain, snapshot):
 *"We parallelize each BFS frontier as a Celery chord rather than walking serially"* — now also
 deterministic and retry-safe.
 
+**Two drivers, one result (2026-09-26).** The sequential `Tracer.run` is the reference the eval
+harness scores; `trace/tasks.py` runs the same `expand_node` as chords. They must decide identically,
+and they once did not: cold per-task provider memos re-counted reads, and hits were stamped with the
+level-END call total, so Li Jiadong crowned Binance live while the harness abstained.
+`level_done` now does *parallel fetch, sequential bookkeeping*: it walks a level's results in address
+order, counts only reads the trace-wide memo has not seen, stops taking nodes once the budget is spent,
+and stamps each hit with the running count. `scripts/parity_check.py` traces every golden case through
+the workers and asserts state, crowned VASP and call count equal the harness (8 of 8).
+
+**`collect_all` is the default** (was off: 1901s on Case B). The per-task cost was a Neo4j driver
+built and closed per frontier node and one Postgres upsert round trip per edge. Now one lazily-created
+driver per worker process (dropped and rebuilt on a failed write) and one `unnest` batch upsert per
+node; a warm full walk of any golden case takes 2 to 6.5s. `max_hops` defaults to the engine ceiling (5),
+i.e. the walk the harness scores. `collect_all=false` restores stop-at-first-hit.
+
 ### 9.3 Trace states + service-node policy
 
 | State | Meaning | Report line |
@@ -498,6 +515,19 @@ reached. Two honest non-answers.
 
 ---
 
+### 10.1 Technique timeline
+
+`attribution/techniques.py` (`GET /trace/{id}/techniques`) names what the funds went through, hop by
+hop. It invents no inference: each entry restates something the trace already established (a change
+output `detect_change` picked, a consolidation visible in a tx's own inputs, a boundary flag, a verified
+sweep) and carries its **basis**: `observed` (read off the chain: consolidation, fan-out, rapid
+layering, deposit sweep), `heuristic` (change output, peel chain, CoinJoin, custodial hub) or `label`
+(registry fact: mixer, bridge, DEX, OFAC). A heuristic is never presented as a fact. Repeats at one hop
+are merged (`CoinJoin ×9`). BTC tx shapes come from the trace's own hypernode edges, so it costs no
+provider call and works on every stored trace.
+
+---
+
 ## 11. SCORING & EVALUATION HARNESS
 
 ### 11.1 Confidence scoring — explainable, frozen priors, proximity excluded
@@ -541,8 +571,14 @@ operational data exists* — the concrete future-work item.
   survive? That, not the raw count, answers "is this calibrated?"
   **It only means something on a case that reached two or more candidates.** With 0 or 1 candidates
   the top-1 cannot change under any weights, so "stable in N of N profiles" is arithmetic, not
-  evidence. The harness prints the contested denominator (currently 0 of 8) and says so in its own
-  output. A case with genuinely competing candidates is required before the number can be cited.
+  evidence. The harness prints the contested denominator and says so in its own output. Since
+  2026-09-26 one golden case is contested: Li Jiadong reaches two sweep-proven exchanges (Binance 70
+  at 3 hops, Bitfinex 64 at 4) and abstains because the 6-point gap is under τ=10, in 20 of 20
+  perturbed profiles. Weights were not touched to produce or remove this.
+- **Headline (2026-09-26, store complete): 7 of 8 decided as documented** (4 of 5 discovery ranked
+  correctly, 3 of 3 confusers refused, the remaining discovery case abstained, 0 wrong), 0 upstream
+  calls. `harness.summary()` computes it once; the CLI prints it and `GET /benchmark` serves it
+  (cached on frozen weights + golden-file mtime), so the number on a slide is the shipped number.
 - A case whose trace comes back `INCOMPLETE` is **not scored**: a confuser that abstains because
   the data never arrived has demonstrated nothing.
 - **Offline fixture mode** (`eval run --offline`, from stored raw responses) = the reproducibility
@@ -577,25 +613,27 @@ apparatus for a 14-day project.
 
 ## 13. EXPLAINABILITY, PROVENANCE & FRONTEND
 
-The graph gets attention; the evidence panel wins the argument. Components:
+The graph gets attention; the evidence panel wins the argument. Report order is the argument:
+verdict → how the money moved → why this target → reproduce and file.
 
-- **TraceForm** → posts a wallet, gets a `trace_id`, polls `/trace/{id}/status`.
-- **GraphView** (Cytoscape.js) — the centerpiece: hop-by-hop animated reveal, amounts on edges.
-  **Render the data-model difference visibly** — BTC transactions as *rectangular `:Tx` nodes*
-  between circular addresses; EVM as address→address arrows. It *proves* the distributed backend
-  is working (not a screenshot) and makes the hypernode work visible.
-- **Leaderboard** — ranked VASP candidates with scores + separation indicator.
-  ```
-  🥇 Binance   87 / 100
-  🥈 Coinbase  63 / 100     separation: HIGH
-  🥉 Kraken    41 / 100
-  ```
-- **RecommendedTarget** — the one crowned primary target + one-line rationale (§10).
-- **NearestPanel** — hops, deposit tx, amount, timestamp — *separate* from confidence (§3).
-- **ScoreBreakdown** — factor contributions behind the number.
-- **ProvenanceCard** — `source · retrieved-at · tx hash · response hash · role basis ·
-  confidence` — the I4C-friendly reproducibility surface + the deposit-event artifact (§6.4).
-- **ReportButton** — opens the PDF, the artifact an investigator files.
+- **Landing** — sky-blue full-screen hero (wordmark, one-liner, wallet input, "golden cases" CTA);
+  below it the **benchmark scorecard** (`GET /benchmark`) and a gallery of all 8 golden cases read from
+  `golden_set.yaml`, each traced at the snapshot the benchmark scored it at.
+- **RecommendedTarget** — the verdict as a sentence ("Funds reached Binance in 2 hops"), then metrics
+  and the techniques detected. Abstention and INCOMPLETE get their own headline; contested cases name
+  both exchanges and the gap. Loading a report scrolls to the top and flashes this card.
+- **GraphView** (Cytoscape.js) — a replay of recorded work: reveal by each edge's real `hop`,
+  particles only along the attributed path, camera follows each step, per-hop caption, and a
+  **storyboard** listing each step's techniques with their basis (§10.1). Contested abstentions end
+  on both endpoints. BTC keeps rectangular `:Tx` hypernodes between circular addresses; EVM is
+  address→address. `/graph` orders the candidates' path edges ahead of its 1200-edge render cap.
+- **LiveGraph** — while a trace runs, `GET /trace/{id}/stream` (SSE) pushes each hop's nodes and edges
+  as the Celery chords commit them to Postgres; drawn on a canvas in hop lanes because a full walk
+  streams 2k+ nodes. "Re-trace live" re-runs a case at its snapshot (replays from the store, no network).
+- **Leaderboard**, **NearestPanel** (proximity, separate from confidence, §3), **ScoreBreakdown**
+  (what-if sliders re-scored by the backend), **ProvenanceCard** (sources, sweep evidence and response
+  hashes, collapsed), **ReportButton** (PDF + both routing branches).
+- **RecentDrawer** — the traced-wallet history and **ConvergencePanel** (§8), out of the report flow.
 
 Budget real time on GraphView (days 11); it dies *after* leaderboard/evidence cards, never before.
 
@@ -616,7 +654,10 @@ GET  /trace/{id}/status                         → {state, current_hop, progres
 GET  /trace/{id}                                → TraceResult   (409 until DONE)
 GET  /trace/{id}/timeline                       → per-phase timing (§16)
 GET  /trace/{id}/provenance                     → ProvenanceCard rows + response hashes (§13)
-GET  /trace/{id}/graph     ?limit               → the walked subgraph, from Postgres (§7.6)
+GET  /trace/{id}/graph     ?limit               → the walked subgraph, from Postgres (§7.6); candidate path edges first
+GET  /trace/{id}/techniques                     → per-hop technique timeline with basis (§10.1)
+GET  /trace/{id}/stream                         → text/event-stream: status | edges | done (live subgraph)
+GET  /benchmark                                 → frozen-weight eval over the golden set + summary (§11.2)
 POST /trace/{id}/rescore   {weights|perturb_pct|profiles}  → what-if ranking (§11.2)
 GET  /convergence          ?trace_ids&chain&min_shared     → shared nodes across traces (§8)
 GET  /wallets/{addr}/score ?chain=              → {score, breakdown}
@@ -625,6 +666,10 @@ POST /sahyog/cases         (CaseRequest)        → as /cases, source tagged  # 
 GET  /sahyog/onboarding/{entity_id}             → {routable_via_sahyog, route}
 POST /sahyog/disclosure    {trace_id, case_reference?}  → {request_id, disclosure_payload}  # MOCK
 ```
+
+`/stream` polls Postgres (`trace_edge` is committed per node before its chord joins) rather than Redis
+pub/sub, so it needs nothing the rest of the API does not already depend on. `/cases` defaults:
+`collect_all=true`, `max_hops=5`.
 
 Deviations from the original sketch, all deliberate: `wallets` is a list so N complaints trace
 under ONE snapshot (§8 convergence needs comparable subgraphs); creation returns **202** when it
