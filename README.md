@@ -1,26 +1,31 @@
-# VASP Attribution Engine — SIH26182
+# train — VASP Attribution Engine (SIH26182)
 
-Turns an unknown crypto wallet into an explainable investigation graph and returns the **nearest
-deposit-accepting VASPs, ranked by evidence**, each with an auditable reason and an honest
-confidence index — and **abstains** rather than guessing when the evidence is not there.
+Turns an unknown crypto wallet into an explainable investigation graph and returns the nearest
+deposit-accepting VASPs, ranked by evidence, each with an auditable reason and an honest
+confidence index. It abstains rather than guessing when the evidence is not there.
 
-It tells an Indian investigator **which exchange to serve** under BNSS §94 + IT Act §79(3)(b). The
-output is an *investigative lead, not identity and not evidence*: identifying the account holder
+It tells an Indian investigator which exchange to serve under BNSS §94 + IT Act §79(3)(b). The
+output is an investigative lead, not identity and not evidence: identifying the account holder
 behind a deposit address is the VASP's KYC under a lawful request.
 
-- `architecture.md` — the spec and single source of truth (data model, scoring, invariants).
-- `DEMO.md` — the stage runbook.
-- `reportscratchpad.md` — the standing pre-launch audit: what is verified, what is not, what is open.
+## Demo
+
+[media/train-demo.mp4](media/train-demo.mp4): a full walkthrough, landing page to filed report,
+including an abstained case and a CoinJoin trap the engine refuses to follow.
+
+- `architecture.md`: the spec and single source of truth (data model, scoring, invariants).
+- `DEMO.md`: the stage runbook.
+- `reportscratchpad.md`: the standing pre-launch audit, what is verified and what is open.
 
 ## What it is not
 
 No chain-wide or real-time monitoring. No mixer de-anonymisation. No trained-model accuracy figure.
-No live SAHYOG integration (the mock is a documented contract). Confidence is a **0–100 index, not
-a probability**. Reproducibility is **not** legal chain of custody.
+No live SAHYOG integration (the mock is a documented contract). Confidence is a 0-100 index, not a
+probability. Reproducibility is not legal chain of custody.
 
 ## Quickstart
 
-Requires Docker (~4 GB for the VM) and a free [Etherscan API key](https://etherscan.io/myapikey).
+Requires Docker (about 4 GB for the VM) and a free [Etherscan API key](https://etherscan.io/myapikey).
 BTC needs no key.
 
 ```bash
@@ -35,13 +40,13 @@ docker compose exec api python -m app.labels.ingest
 open http://127.0.0.1:5173      # the console
 ```
 
-The API is published on `127.0.0.1:8000` only — it has no authentication yet (§15), so it is not
+The API is published on `127.0.0.1:8000` only, it has no authentication yet (§15), so it is not
 exposed to the network. `http://127.0.0.1:8000/docs` is the generated OpenAPI contract.
 
 ### Without the demo database
 
 A clone starts with an empty Postgres. The schema is created automatically on API boot, but the
-**stored provider responses that make the offline demo possible are not in git** — they live in the
+stored provider responses that make the offline demo possible are not in git: they live in the
 `pgdata` volume of the machine that fetched them. On a fresh machine a trace fetches from the
 providers (free tier, rate-limited: Etherscan 3 req/s, Blockstream 700 req/h per IP), so budget a
 few minutes for the first run of a case and expect the call counters in the HUD to be non-zero.
@@ -57,14 +62,14 @@ curl -s 127.0.0.1:8000/trace/<trace_id> | jq '{state, recommended, separation}'
 curl -s 127.0.0.1:8000/report/<trace_id> -o report.pdf
 ```
 
-Every case pins four things and prints them on the report (§12): **snapshot block, label-set
-version, adapter version, weight-profile hash**. Re-running with the same four reproduces the
-result from the stored responses.
+Every case pins four things and prints them on the report (§12): snapshot block, label-set
+version, adapter version, weight-profile hash. Re-running with the same four reproduces the result
+from the stored responses.
 
 ## Checks
 
 ```bash
-# offline golden-set evaluation from the stored responses — zero provider calls
+# offline golden-set evaluation from the stored responses, zero provider calls
 docker compose exec api python -m app.eval.harness
 
 # §12 reproduce-and-verify: re-render a filed report and compare its content hash
@@ -74,13 +79,13 @@ docker compose exec api python -m app.eval.verify <trace_id>
 docker compose exec api python -m app.scoring.rules
 docker compose exec api python -m app.attribution.aggregate
 
-# rebuild the derived Neo4j index from Postgres (§7.6). --keep is non-destructive.
+# rebuild the derived Neo4j index from Postgres (§7.6); --keep is non-destructive
 docker compose run --rm -e PYTHONPATH=/app -v "$PWD/scripts:/repo/scripts:ro" \
   api python /repo/scripts/rebuild_graph.py --keep
 ```
 
-**Do not run `scripts/day5_graph_check.py`.** It `TRUNCATE`s `trace_edge, edge, evidence, utxo_tx`
-and wipes the multi-victim convergence data. See `architecture.md` §24 for why it is formally unrun.
+Do not run `scripts/day5_graph_check.py`. It `TRUNCATE`s `trace_edge, edge, evidence, utxo_tx` and
+wipes the multi-victim convergence data. See `architecture.md` §24 for why it is formally unrun.
 
 ## Layout
 
@@ -99,6 +104,5 @@ labels/          curated label data (OFAC crypto list, SAHYOG VASPs, bridges, go
 scripts/         day-by-day gate checks and the Neo4j rebuild
 ```
 
-Postgres is the system of record; **Neo4j is a derived index** and can be rebuilt from it at any
-time. The graph and convergence surfaces read Postgres directly, so they keep working with Neo4j
-down.
+Postgres is the system of record, Neo4j is a derived index and can be rebuilt from it at any time.
+The graph and convergence surfaces read Postgres directly, so they keep working with Neo4j down.
