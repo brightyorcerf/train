@@ -128,12 +128,38 @@ def summary(out: list[dict]) -> dict:
     }
 
 
+HERO = "wuhuihui-binance"   # the DEMO.md stage case
+
+
+def canonical(out: list[dict], m: dict) -> dict:
+    """Every number the deck, video and Q&A may quote, with the pins it was computed under."""
+    lsv = sorted({r["_trace"]["label_set_version"] for r in out if "_trace" in r})
+    hero = next((r for r in out if r["id"] == HERO), None)
+    return {
+        "computed": time.strftime("%Y-%m-%d"), "mode": "offline (raw store only)",
+        "weight_hash": weight_hash(), "weights_frozen_at": FROZEN_AT, "label_set_version": lsv,
+        "separation_tau": SEPARATION_TAU, "crown_floor": MIN_CROWN,
+        "golden": {k: v for k, v in m.items() if not k.startswith("_")},
+        "headline": f"{m['correct']} of {m['scored']} decided as documented; correct VASP #1 in "
+                    f"{m['discovery_correct']} of {m['discovery']} discovery cases; "
+                    f"{m['confusers_correct']} of {m['confusers']} confusers refused",
+        "cases": [{"id": r["id"], "chain": r.get("chain"), "expect": r.get("expect"), "verdict": r["verdict"],
+                   "state": r["state"], "recommended": r.get("recommended"), "ranked": r.get("ranked"),
+                   "hops": r.get("hops"), "calls": r.get("calls"), "upstream": r.get("upstream"),
+                   "wall_s": r.get("wall_s"), "rank_stable": r["stable"]} for r in out],
+        "hero": hero and {"id": HERO, "hops": hero["hops"], "calls": hero["calls"],
+                          "upstream": hero["upstream"], "wall_s": hero["wall_s"]},
+        "cliff_edge": [r["id"] for r in m["_scored"] if (r.get("calls") or 0) >= 0.95 * MAX_CALLS],
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--online", action="store_true", help="allow live provider calls (default: store only)")
     ap.add_argument("--cases", default="")
     ap.add_argument("--max-hops", type=int, default=5)
     ap.add_argument("--json", default="")
+    ap.add_argument("--canonical", default="", help="write the quotable numbers (deck/video/Q&A) here")
     a = ap.parse_args()
 
     rows = cases(tuple(x for x in a.cases.split(",") if x))
@@ -190,6 +216,10 @@ def main():
         Path(a.json).write_text(json.dumps([{k: v for k, v in r.items() if k != "_trace"} for r in out],
                                            indent=2, default=str))
         print(f"-> {a.json}")
+    if a.canonical:
+        Path(a.canonical).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.canonical).write_text(json.dumps(canonical(out, m), indent=2) + "\n")
+        print(f"-> {a.canonical}")
     sys.exit(0 if len(scored) == len(out) and not [r for r in scored if r["verdict"] in ("WRONG",)] else 1)
 
 

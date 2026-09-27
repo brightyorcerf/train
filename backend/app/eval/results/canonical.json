@@ -1,0 +1,182 @@
+{
+  "computed": "2026-09-27",
+  "mode": "offline (raw store only)",
+  "weight_hash": "w-75bf07eaee79",
+  "weights_frozen_at": "2026-09-12",
+  "label_set_version": [
+    "ls-56616bc26d3d"
+  ],
+  "separation_tau": 10,
+  "crown_floor": 50,
+  "golden": {
+    "cases": 8,
+    "scored": 8,
+    "not_scored": 0,
+    "correct": 7,
+    "discovery": 5,
+    "discovery_correct": 4,
+    "confusers": 3,
+    "confusers_correct": 3,
+    "stable": 160,
+    "profiles": 160,
+    "contested": 1,
+    "contested_stable": 20,
+    "contested_profiles": 20,
+    "calls": 874,
+    "upstream": 0
+  },
+  "headline": "7 of 8 decided as documented; correct VASP #1 in 4 of 5 discovery cases; 3 of 3 confusers refused",
+  "cases": [
+    {
+      "id": "polyanin-revil-binance",
+      "chain": "btc",
+      "expect": "ATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "ATTRIBUTED",
+      "recommended": "binance",
+      "ranked": [
+        [
+          "binance",
+          69
+        ]
+      ],
+      "hops": 4,
+      "calls": 200,
+      "upstream": 0,
+      "wall_s": 1.0,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "zhdanova-binance",
+      "chain": "btc",
+      "expect": "ATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "ATTRIBUTED",
+      "recommended": "binance",
+      "ranked": [
+        [
+          "binance",
+          70
+        ]
+      ],
+      "hops": 1,
+      "calls": 93,
+      "upstream": 0,
+      "wall_s": 0.4,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "lijiadong-lazarus-binance",
+      "chain": "btc",
+      "expect": "ATTRIBUTED",
+      "verdict": "ABSTAINED",
+      "state": "AMBIGUOUS",
+      "recommended": null,
+      "ranked": [
+        [
+          "binance",
+          70
+        ],
+        [
+          "bitfinex",
+          64
+        ]
+      ],
+      "hops": 3,
+      "calls": 178,
+      "upstream": 0,
+      "wall_s": 1.7,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "potekhin-karasavidi-bitfinex",
+      "chain": "eth",
+      "expect": "ATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "ATTRIBUTED",
+      "recommended": "bitfinex",
+      "ranked": [
+        [
+          "bitfinex",
+          59
+        ]
+      ],
+      "hops": 3,
+      "calls": 12,
+      "upstream": 0,
+      "wall_s": 0.2,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "wuhuihui-binance",
+      "chain": "btc",
+      "expect": "ATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "ATTRIBUTED",
+      "recommended": "binance",
+      "ranked": [
+        [
+          "binance",
+          70
+        ]
+      ],
+      "hops": 2,
+      "calls": 94,
+      "upstream": 0,
+      "wall_s": 0.8,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "hydramarket-coinjoin-confuser",
+      "chain": "btc",
+      "expect": "UNATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "UNATTRIBUTED",
+      "recommended": null,
+      "ranked": [],
+      "hops": null,
+      "calls": 92,
+      "upstream": 0,
+      "wall_s": 0.8,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "andreyev-hub-confuser",
+      "chain": "btc",
+      "expect": "UNATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "UNATTRIBUTED",
+      "recommended": null,
+      "ranked": [],
+      "hops": null,
+      "calls": 19,
+      "upstream": 0,
+      "wall_s": 1.9,
+      "rank_stable": "20/20"
+    },
+    {
+      "id": "bitfinex-2016-unnamed-services",
+      "chain": "btc",
+      "expect": "UNATTRIBUTED",
+      "verdict": "CORRECT",
+      "state": "UNATTRIBUTED",
+      "recommended": null,
+      "ranked": [],
+      "hops": null,
+      "calls": 186,
+      "upstream": 0,
+      "wall_s": 0.3,
+      "rank_stable": "20/20"
+    }
+  ],
+  "hero": {
+    "id": "wuhuihui-binance",
+    "hops": 2,
+    "calls": 94,
+    "upstream": 0,
+    "wall_s": 0.8
+  },
+  "cliff_edge": [
+    "polyanin-revil-binance"
+  ]
+}
