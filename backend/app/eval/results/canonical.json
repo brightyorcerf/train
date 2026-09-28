@@ -198,5 +198,41 @@
   "cliff_edge": [
     "polyanin-revil-binance",
     "aljebouri-kucoin-tron"
-  ]
+  ],
+  "recovery_benchmark": {
+    "label_set_version": "ls-dd778ec3dbfa",
+    "snapshot_block": 25906777,
+    "chain": "eth",
+    "weights": "frozen (no change after results)",
+    "positives": 40,
+    "recovered": 10,
+    "different_exchange": 6,
+    "different_exchange_sweep_proven": 6,
+    "abstained": 24,
+    "abstained_truth_tied_top": 12,
+    "abstained_truth_not_reached": 7,
+    "by_hops_back": {
+      "1": {
+        "recovered": 8,
+        "different": 0,
+        "abstained": 6
+      },
+      "2": {
+        "recovered": 2,
+        "different": 3,
+        "abstained": 8
+      },
+      "3": {
+        "recovered": 0,
+        "different": 3,
+        "abstained": 10
+      }
+    },
+    "named": 16,
+    "named_real_deposit": 16,
+    "decoys": 10,
+    "decoys_refused": 10,
+    "partial_excluded": 0,
+    "limitation": "ground truth is selected by sweep behaviour and re-found by sweep-proof: this measures traversal and ranking, not sweep-proof correctness. 'different' is not necessarily wrong."
+  }
 }

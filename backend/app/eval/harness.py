@@ -221,7 +221,9 @@ def main():
         print(f"-> {a.json}")
     if a.canonical:
         Path(a.canonical).parent.mkdir(parents=True, exist_ok=True)
-        Path(a.canonical).write_text(json.dumps(canonical(out, m), indent=2) + "\n")
+        keep = json.loads(Path(a.canonical).read_text()) if Path(a.canonical).exists() else {}
+        keep.update(canonical(out, m))   # keeps blocks other scripts own (recovery_benchmark)
+        Path(a.canonical).write_text(json.dumps(keep, indent=2) + "\n")
         print(f"-> {a.canonical}")
     sys.exit(0 if len(scored) == len(out) and not [r for r in scored if r["verdict"] in ("WRONG",)] else 1)
 
