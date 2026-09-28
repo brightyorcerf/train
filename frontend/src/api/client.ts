@@ -287,6 +287,15 @@ export const disclosure = (id: string) => post<Disclosure>(`/sahyog/disclosure?t
 /** The report is a real PDF stream, so it is a link the browser opens — not a fetch. */
 export const reportUrl = (id: string) => `${API}/report/${id}`
 
+export type IntakeResult = {
+  addresses: { address: string; chain: string; valid: boolean; check: string }[]
+  cases: Record<string, { trace_ids: string[]; snapshot_block: number; reused: boolean[] }>
+  convergence: Record<string, string>
+  dropped_over_cap: string[]
+}
+export const intake = (text: string, snapshots: Record<string, number>) =>
+  post<IntakeResult>('/intake', { text, snapshots })
+
 export const convergence = (ids: string[], chain: string, minShared = 2) =>
   get<Convergence>(`/convergence?trace_ids=${ids.join(',')}&chain=${chain}&min_shared=${minShared}`)
 

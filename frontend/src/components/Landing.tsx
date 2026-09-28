@@ -3,13 +3,14 @@ import { benchmark, createCase } from '../api/client'
 import type { BenchCase, Benchmark } from '../api/client'
 import { NetworkCanvas } from './NetworkCanvas'
 import { TraceForm } from './TraceForm'
+import { IntakePanel } from './IntakePanel'
 import { short } from '../fmt'
 
-/** Landing: the pitch, the benchmark as a number, and the eight documented cases one click away.
+/** Landing: the pitch, the benchmark as a number, and the documented golden cases one click away.
  *
  *  The scorecard is GET /benchmark — the frozen-weight eval harness run over the golden set from
  *  the raw store — so the headline on screen is the shipped number, not a copy of it. It is phrased
- *  "M of N", never as a percentage (harness rule 1: n is 8). */
+ *  "M of N", never as a percentage (harness rule 1: n is small). */
 export function Landing({ onStarted, busy, onRecent, nRecent }: {
   onStarted: (ids: string[], reused: boolean, wallet: string) => void
   busy: boolean
@@ -52,7 +53,7 @@ export function Landing({ onStarted, busy, onRecent, nRecent }: {
                   onClick={() => document.getElementById('cases')?.scrollIntoView({ behavior: 'smooth' })}>
             golden cases ↓
           </button>
-          <span className="scroll-hint">8 documented cases below</span>
+          <span className="scroll-hint">{b ? b.cases.length : 9} documented cases below</span>
         </section>
       </div>
 
@@ -86,6 +87,8 @@ export function Landing({ onStarted, busy, onRecent, nRecent }: {
             content-hashed store</div>
         </div>
       </div>
+
+      <IntakePanel />
 
       <div className="gallery-h" id="cases" style={{ scrollMarginTop: 24 }}>
         <h2>Documented cases</h2>

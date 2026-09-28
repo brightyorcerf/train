@@ -36,8 +36,6 @@ export function ConvergencePanel({ cases }: { cases: CaseRow[] }) {
     }
   }
 
-  const vasp = out?.shared_nodes.filter((n) => !n.is_traced_wallet && (n.role === 'deposit' || n.role === 'hot')) ?? []
-  const discovered = out?.shared_nodes.filter((n) => !n.is_traced_wallet) ?? []
 
   return (
     <div className="panel">
@@ -80,66 +78,73 @@ export function ConvergencePanel({ cases }: { cases: CaseRow[] }) {
 
       {err && <div className="note err">{err}</div>}
 
-      {out && (
-        <>
-          <div className="row" style={{ margin: '14px 0 4px', gap: 10, alignItems: 'baseline' }}>
-            <b style={{ fontSize: 18 }}>{out.trace_ids.length}</b>
-            <span className="dim">complaints →</span>
-            <b className="cyan" style={{ fontSize: 18 }}>{out.n_shared}</b>
-            <span className="dim">shared node{out.n_shared === 1 ? '' : 's'} →</span>
-            {vasp.length > 0 ? (
-              <b className="gold" style={{ fontSize: 18 }}>
-                {vasp[0].entity_name ?? vasp[0].entity}
-                {vasp[0].sahyog === 'confirmed' && <span className="tag green" style={{ marginLeft: 8 }}>sahyog</span>}
-              </b>
-            ) : (
-              <span className="amber">no shared VASP endpoint</span>
-            )}
-          </div>
-
-          {out.n_shared === 0 ? (
-            <div className="note">
-              These traces share no node. That is a real answer: separate complaints that do not
-              converge are separate cases, and the panel will not manufacture a link between them.
-            </div>
-          ) : (
-            <table>
-              <thead>
-                <tr><th>address</th><th>shared by</th><th>role</th><th>received</th><th>hop</th><th>what this is</th></tr>
-              </thead>
-              <tbody>
-                {discovered.slice(0, 10).map((n) => (
-                  <tr key={n.address}>
-                    <td className="mono trunc" style={{ fontSize: 12 }}>{short(n.address)}</td>
-                    <td className="mono"><b>{n.shared_by}</b><span className="dim"> / {out.trace_ids.length}</span></td>
-                    <td>
-                      <span className={`tag ${ROLE_CLASS[n.role] ?? 'dim'}`}>
-                        {n.entity_name ? `${n.role}: ${n.entity_name}` : n.role}
-                      </span>
-                    </td>
-                    <td className="mono">{n.total_received} {n.asset}</td>
-                    <td className="mono dim">{n.min_hop}</td>
-                    <td className="dim" style={{ fontSize: 12 }}>{n.interpretation}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {vasp.length === 0 && out.n_shared > 0 && (
-            <div className="note">
-              The shared node is a boundary, not a disclosure target: the traces converge before any
-              of them reaches a VASP. One SAHYOG request cannot cover these cases: what they share
-              is where the money stopped being followable (§9.3), and saying so is the difference
-              between an insight and a false lead.
-            </div>
-          )}
-          <div className="note">
-            A shared node is not automatically a suspect. An exchange hot wallet is shared by
-            everyone. Rows that are themselves traced wallets are excluded from the count above.
-          </div>
-        </>
-      )}
+      {out && <ConvergenceResult out={out} />}
     </div>
+  )
+}
+
+/** The intersection result, shared by the drawer panel and complaint intake. */
+export function ConvergenceResult({ out }: { out: Convergence }) {
+  const vasp = out.shared_nodes.filter((n) => !n.is_traced_wallet && (n.role === 'deposit' || n.role === 'hot'))
+  const discovered = out.shared_nodes.filter((n) => !n.is_traced_wallet)
+  return (
+    <>
+      <div className="row" style={{ margin: '14px 0 4px', gap: 10, alignItems: 'baseline' }}>
+        <b style={{ fontSize: 18 }}>{out.trace_ids.length}</b>
+        <span className="dim">complaints →</span>
+        <b className="cyan" style={{ fontSize: 18 }}>{out.n_shared}</b>
+        <span className="dim">shared node{out.n_shared === 1 ? '' : 's'} →</span>
+        {vasp.length > 0 ? (
+          <b className="gold" style={{ fontSize: 18 }}>
+            {vasp[0].entity_name ?? vasp[0].entity}
+            {vasp[0].sahyog === 'confirmed' && <span className="tag green" style={{ marginLeft: 8 }}>sahyog</span>}
+          </b>
+        ) : (
+          <span className="amber">no shared VASP endpoint</span>
+        )}
+      </div>
+
+      {out.n_shared === 0 ? (
+        <div className="note">
+          These traces share no node. That is a real answer: separate complaints that do not
+          converge are separate cases, and the panel will not manufacture a link between them.
+        </div>
+      ) : (
+        <table>
+          <thead>
+            <tr><th>address</th><th>shared by</th><th>role</th><th>received</th><th>hop</th><th>what this is</th></tr>
+          </thead>
+          <tbody>
+            {discovered.slice(0, 10).map((n) => (
+              <tr key={n.address}>
+                <td className="mono trunc" style={{ fontSize: 12 }}>{short(n.address)}</td>
+                <td className="mono"><b>{n.shared_by}</b><span className="dim"> / {out.trace_ids.length}</span></td>
+                <td>
+                  <span className={`tag ${ROLE_CLASS[n.role] ?? 'dim'}`}>
+                    {n.entity_name ? `${n.role}: ${n.entity_name}` : n.role}
+                  </span>
+                </td>
+                <td className="mono">{n.total_received} {n.asset}</td>
+                <td className="mono dim">{n.min_hop}</td>
+                <td className="dim" style={{ fontSize: 12 }}>{n.interpretation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {vasp.length === 0 && out.n_shared > 0 && (
+        <div className="note">
+          The shared node is a boundary, not a disclosure target: the traces converge before any
+          of them reaches a VASP. One SAHYOG request cannot cover these cases: what they share
+          is where the money stopped being followable (§9.3), and saying so is the difference
+          between an insight and a false lead.
+        </div>
+      )}
+      <div className="note">
+        A shared node is not automatically a suspect. An exchange hot wallet is shared by
+        everyone. Rows that are themselves traced wallets are excluded from the count above.
+      </div>
+    </>
   )
 }

@@ -26,6 +26,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api import sahyog as sahyog_mock
+from app.api.intake import extract
 from app.api.report import build_pdf
 from app.api.report import response_hashes as _response_hashes
 from app.api.timeline import summarize
@@ -490,6 +491,35 @@ def trace_stream(trace_id: UUID):
 
 
 # ---------- convergence (§8) ----------
+class IntakeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=20_000)
+    snapshots: dict[str, int] = {}   # chain -> pinned snapshot; a chain left out pins the tip
+
+
+@app.post("/intake", status_code=202)
+def intake(req: IntakeRequest, response: Response):
+    """Complaint text -> every wallet address in it, checksum-validated -> one multi-wallet case per
+    chain (POST /cases semantics: idempotent per wallet+snapshot). Where a chain has >= 2 wallets the
+    reply carries the /convergence query to run once those traces finish; convergence needs
+    finished subgraphs, so it cannot be computed inside this request."""
+    found = extract(req.text)
+    by_chain: dict[str, list[str]] = {}
+    for r in found:
+        if r["valid"]:
+            by_chain.setdefault(r["chain"], []).append(r["address"])
+    cases, conv, dropped = {}, {}, []
+    for chain, ws in by_chain.items():
+        dropped += ws[10:]   # CaseRequest's cap; said, not silently truncated
+        out = create_case(CaseRequest(wallets=ws[:10], chain=chain, snapshot_block=req.snapshots.get(chain)),
+                          response)
+        cases[chain] = {"trace_ids": out["trace_ids"], "snapshot_block": out["snapshot_block"],
+                        "reused": [c["reused"] for c in out["cases"]]}
+        if len(out["trace_ids"]) >= 2:
+            conv[chain] = f"/convergence?trace_ids={','.join(out['trace_ids'])}&chain={chain}"
+    return {"addresses": found, "cases": cases, "convergence": conv, "dropped_over_cap": dropped}
+
+
 @app.get("/convergence")
 def convergence(trace_ids: str, chain: Chain = "btc", min_shared: int = Query(2, ge=1, le=100)):
     """Nodes appearing in >= min_shared of these traces' subgraphs — where separate complaints
