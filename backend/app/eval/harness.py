@@ -45,6 +45,7 @@ from app.scoring.weights import (
 from app.trace.engine import MAX_CALLS, Tracer
 
 GOLDEN = REPO / "labels" / "golden_set.yaml"
+CANONICAL = Path(__file__).parent / "results" / "canonical.json"
 SNAPSHOT = {"btc": 966553, "eth": 25906777, "polygon": 93439913, "tron": 1790467200}  # tron: unix s
 N_PROFILES = 20
 

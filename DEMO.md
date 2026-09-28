@@ -70,7 +70,10 @@ and will wipe the Lazarus convergence. See architecture.md §24 for why it is fo
 1. **The question + the number.** Landing page. "Which exchange can identify the account holder
    behind this wallet?" Point at the scorecard — it is `GET /benchmark`, the frozen-weight harness run
    live over 9 OFAC/DOJ-documented cases from the evidence store: **8 of 9 decided as the record
-   says, 0 wrong, 0 network calls.** Say "8 of 9", never a percentage.
+   says, 0 wrong, 0 network calls.** Say "8 of 9", never a percentage. The last tile is the recorded
+   recovery test: **16 of 16 exchanges it named were real deposits the money reached**, abstained on
+   24 of 40, 10 of 10 mixer traps refused. If asked: the truth is picked by sweep behaviour, so it
+   tests traversal and ranking; it is strong at 1 hop and weak at 3.
 2. **Case A — BTC discovery.** Click the *Wu Huihui* card. The report scrolls to the top and the
    verdict flashes: **Funds reached Binance in 2 hops**, 70/100, sweep_proven. The replay starts on
    its own: particles run only along the attributed path, the camera follows each hop, and the
@@ -86,17 +89,26 @@ and will wipe the Lazarus convergence. See architecture.md §24 for why it is fo
    abstains because the gap (6) is under τ=10. The replay ends on both endpoints. This is the beat:
    *the government record says Binance; our engine will not name one exchange on a 6-point margin,
    and it did not tune its weights to make that go away.*
+4b. **Case C — the portal route, for real.** Click the *Al-Jebouri* card (Tron). An OFAC-listed
+   (SDGT) USDT wallet reaches a sweep-proven **KuCoin** deposit in 2 hops, 66/100; KuCoin is on
+   SAHYOG, so the route line reads **SAHYOG portal (BNSS §94)**, not MLAT. Say it precisely: hop 1 is
+   a second OFAC-listed address of the same person. Flex line: *Tron was one new provider file; the
+   engine did not change.*
 5. **Calibration.** ScoreBreakdown sliders re-score on the backend (the harness's own function,
    zero provider calls). Weights frozen (`w-75bf07eaee79`). Rank stability: the harness now has
    **one contested case** (Li Jiadong) and its abstention holds in 20 of 20 ±20% profiles. Claim
-   exactly that; the other seven reach one candidate, where stability is arithmetic.
+   exactly that; the other eight reach one candidate, where stability is arithmetic.
    Never "accuracy %".
 5b. **The engine, live.** On any golden report hit **Re-trace live ↻** (forced re-run at the same
    snapshot — replays from the store, no Wi-Fi needed). The *live* panel streams `/trace/{id}/stream` (SSE): hop
    lanes fill as the Celery chord for each hop commits. Flex line: *the distributed driver decides
-   all 8 golden cases call-for-call identically to the sequential reference*
-   (`scripts/parity_check.py`, 8 of 8).
-6. **Convergence** (*Recent traces* drawer → tick the Lazarus wallets → find shared nodes). Seven Lazarus complaints → **Tornado Cash, 7/7, 120,200 ETH** (re-verified
+   all 9 golden cases call-for-call identically to the sequential reference*
+   (`scripts/parity_check.py`, 9 of 9, re-run 2026-09-28 including the Tron case).
+6. **Convergence, from complaint text** (landing → *From complaint text* → **Load sample text** →
+   **Extract and trace**; the sample is labelled as sample text, the 8 addresses are OFAC's Lazarus
+   Group list). Every address is pulled out and checksum-checked, one case per chain is traced (all
+   reused, so 0 network calls), and convergence runs by itself. The *Recent traces* drawer still
+   does the same by hand. Seven Lazarus complaints → **Tornado Cash, 7/7, 120,200 ETH** (re-verified
    2026-09-18; the eighth wallet's trace is FAILED and is not selectable, which is why it is seven
    and not eight). The honest ending: this converges on a **mixer boundary**, not a VASP — so one
    SAHYOG request cannot cover them. Saying that is the difference between an insight and a false
@@ -137,7 +149,7 @@ Assign a name to each slot before the presentation — one owner per question, s
 | # | Question | Answer in one breath | Owner |
 |---|---|---|---|
 | 1 | "How do you know the exchange owns that address?" | Sweep proof (§6.2c): the deposit address swept into a labeled hot wallet; `role_basis: sweep_proven`, with the sweep tx, distinct-sender count and share on the Provenance card. | ______ |
-| 2 | "Is your confidence calibrated?" | It is an **index out of 100**, not a probability and not ownership, and every factor is inspectable on screen. Weights were frozen before evaluation (`w-75bf07eaee79`). Rank stability under ±20%: one golden case is contested (Li Jiadong, Binance 70 vs Bitfinex 64) and its abstention holds in 20/20 profiles; the other seven reach one candidate, where stability is arithmetic — the harness prints that denominator itself. | ______ |
+| 2 | "Is your confidence calibrated?" | It is an **index out of 100**, not a probability and not ownership, and every factor is inspectable on screen. Weights were frozen before evaluation (`w-75bf07eaee79`). Rank stability under ±20%: one golden case is contested (Li Jiadong, Binance 70 vs Bitfinex 64) and its abstention holds in 20/20 profiles; the other eight reach one candidate, where stability is arithmetic — the harness prints that denominator itself. | ______ |
 | 3 | "Why OFAC data for an Indian tool?" | OFAC is only the sanctioned layer. The India answer is the SAHYOG routing: onboarded VASP → portal under BNSS §94; otherwise the honest MLAT boundary. | ______ |
 | 4 | "What if it errors on stage?" | FAILED is a real state with the cause recorded; convergence and the graph are Postgres-only; and the whole demo replays offline. | ______ |
 | 5 | "Is this chain-wide / real-time?" | No, and we never claim it. Bounded BFS, pinned snapshot, capped call budget. Claiming chain-scale monitoring is the claim that would not survive scrutiny (§18). | ______ |

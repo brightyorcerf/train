@@ -349,7 +349,7 @@ tr.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--sky); }
 @keyframes bob { 50% { transform: translate(-50%, 5px); } }
 
 .landing { max-width: 1240px; margin: 0 auto; padding: 44px 24px 120px; }
-.score { display: grid; grid-template-columns: 1.3fr repeat(4, 1fr); gap: 1px; background: var(--line);
+.score { display: grid; grid-template-columns: 1.3fr repeat(5, 1fr); gap: 1px; background: var(--line);
   border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin: 0 0 44px; box-shadow: var(--shadow); }
 @media (max-width: 900px) { .score { grid-template-columns: 1fr 1fr; } }
 .score > div { background: var(--surface); padding: 18px 20px; }

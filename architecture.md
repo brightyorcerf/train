@@ -154,7 +154,7 @@ vasp-attribution/
 │   └── app/
 │       ├── main.py               # FastAPI app factory + router mount
 │       ├── core/{config.py,deps.py,ratelimit.py}   # ratelimit.py = Redis token bucket per provider
-│       ├── api/{cases,trace,wallets,reports,sahyog}.py
+│       ├── api/{cases,trace,wallets,reports,sahyog,intake}.py   # intake = complaint text → validated addresses
 │       ├── schemas/              # pydantic request/response models (§14)
 │       ├── providers/            # provider abstraction (§8) — NOT one-file-per-chain-scan
 │       │   ├── base.py           # BlockchainProvider ABC
@@ -162,7 +162,7 @@ vasp-attribution/
 │       │   ├── bsctrace.py       # BNB via MegaNode — JSON-RPC 2.0 (different shape)
 │       │   ├── esplora.py        # BTC: mempool.space primary → blockstream.info failover
 │       │   ├── blockchair.py     # BTC curation / dataset dumps only
-│       │   └── tron.py           # STUB — documents the interface; deferred (§21)
+│       │   └── tron.py           # Tron USDT (TRC-20) via TronGrid; snapshot = unix seconds (built 2026-09-27)
 │       ├── labels/               # THE LABEL & ENTITY SUBSYSTEM (§6)
 │       │   ├── registry.py       # VASP registry + entity resolution
 │       │   ├── ingest.py         # load labels/* → Postgres + Neo4j
@@ -183,11 +183,12 @@ vasp-attribution/
         ├── api/client.ts         # typed fetch, status polling, EventSource for /stream
         └── components/{Landing,TraceForm,RecentDrawer,CaseList,GraphView(+LiveGraph),Leaderboard,
                         RecommendedTarget,NearestPanel,ScoreBreakdown,ProvenanceCard,ReportButton,
-                        ConvergencePanel,NetworkCanvas}.tsx
+                        ConvergencePanel,IntakePanel,NetworkCanvas}.tsx
 ```
 
-`providers/tron.py` and the ABC are the physical proof of the "pluggable multi-chain" claim:
-adding a chain is a new provider file, not a new engine.
+`providers/tron.py` is the physical proof of the "pluggable multi-chain" claim: Tron was added on
+2026-09-27 as one provider file driven by the unchanged account-chain engine path. Adding a chain is
+a new provider file, not a new engine.
 
 ---
 
@@ -306,6 +307,12 @@ Index: :Address(is_labeled)
 - **ERC-20 `from/to/value` come from the Transfer *event log*** (`tokentx`), not the
   transaction's `from/to` (which is only the submitting EOA). Normalize token decimals.
 - Deep DeFi state reconstruction is out of scope — say so.
+- **Tron (USDT, TRC-20) rides the same account-model path** (`kind = trc20`). TronGrid rows carry no
+  block number and no event index, so on Tron the snapshot coordinate and `Edge.block` are **unix
+  seconds**, and edge identity is `contract:value:ordinal` as for `tokentx`. Base58 addresses (`T…`)
+  are case-sensitive and never lowercased (`addr_key`). Observed sweep pattern on a KuCoin deposit:
+  30 TRX in, 5,800 TRX of energy delegated, USDT swept with 0 TRX burned, energy un-delegated ~15 min
+  later; the fee wallets are unlabeled, so they are not attributed.
 
 ### 7.3 UTXO model (Bitcoin) — a transaction is a hypernode
 
@@ -380,7 +387,8 @@ class BlockchainProvider(ABC):
 | BNB (56) | **BSCTrace/MegaNode (JSON-RPC 2.0)** or Etherscan Lite (paid) | no Etherscan free tier | different adapter shape — config swap via the abstraction *demonstrates* it |
 | BTC (live walk) | **mempool.space → Blockstream Esplora** (failover) | free, indexed, ~100–500 req/min/IP | `esplora-client` fails over automatically |
 | BTC (curation) | Blockchair | ~1k calls/day | dataset dumps / curation only, not live BFS |
-| Alternate (Tron/Solana future) | Bitquery | first-month points; real-time only | history is a paid add-on; never on the demo path |
+| Tron (USDT TRC-20) | **TronGrid v1 (REST)** | keyless: sequential 2–3 req/s OK, a 30-way burst is 29/30 429 + ~30 s penalty; sustained ~0.4 req/s measured | paced 1.5/s in the shared bucket; optional `TRONGRID_API_KEY`; USDT only, no TRX-native tracing |
+| Alternate (Solana future) | Bitquery | first-month points; real-time only | history is a paid add-on; never on the demo path |
 | Labels | OFAC (Treasury) · curated SAHYOG set · GraphSense TagPacks (see §1 OPEN) · Etherscan nametags (Pro Plus, optional) | | see §6 |
 
 **Global rate limiter (load-bearing):** a Redis token-bucket **per provider key**, bounded
@@ -430,7 +438,7 @@ level-END call total, so Li Jiadong crowned Binance live while the harness absta
 `level_done` now does *parallel fetch, sequential bookkeeping*: it walks a level's results in address
 order, counts only reads the trace-wide memo has not seen, stops taking nodes once the budget is spent,
 and stamps each hit with the running count. `scripts/parity_check.py` traces every golden case through
-the workers and asserts state, crowned VASP and call count equal the harness (8 of 8).
+the workers and asserts state, crowned VASP and call count equal the harness (9 of 9, re-run 2026-09-28 including the Tron case).
 
 **`collect_all` is the default** (was off: 1901s on Case B). The per-task cost was a Neo4j driver
 built and closed per frontier node and one Postgres upsert round trip per edge. Now one lazily-created
@@ -585,6 +593,16 @@ operational data exists* — the concrete future-work item.
 - **Offline fixture mode** (`eval run --offline`, from stored raw responses) = the reproducibility
   demo. **Per-case telemetry** (API calls, wall-clock, cost) = the direct evidence for the PS's
   "reduce investigation time" goal.
+- **Recovery test** (`scripts/recovery_bench.py`, ETH, frozen weights, 2026-09-28): deposit addresses
+  are unlabeled senders into labeled exchange hot wallets that pass the sweep test; start wallets are
+  1–3 same-asset hops before them (each hop within ~30 days, no hub intermediates). Decoys are
+  depositors whose every outflow is into a mixer. **n = 40 + 10 decoys: named an exchange 16 times,
+  all 16 sweep-proven deposits the traced money reached (0 false leads); 10 exact, 6 another exchange
+  the wallet also paid; abstained on 24 (12 a tie between two real exchanges, 7 never reached the
+  deposit); 10 of 10 decoys refused.** By hops back: 1 → 8 of 14 exact, 2 → 2 of 13, 3 → 0 of 13.
+  Limitations, stated with the number: the truth is selected by sweep behaviour and re-found by
+  sweep-proof, so this measures traversal and ranking, not sweep-proof correctness; the decoys only
+  exercise the mixer stop rule. Served on `GET /benchmark` from `canonical.json`, never recomputed.
 
 Keep this proportionate: freeze + smoke test + perturbation. Do **not** build a cross-validation
 apparatus for a 14-day project.
@@ -621,8 +639,11 @@ The graph gets attention; the evidence panel wins the argument. Report order is 
 verdict → how the money moved → why this target → reproduce and file.
 
 - **Landing** — sky-blue full-screen hero (wordmark, one-liner, wallet input, "golden cases" CTA);
-  below it the **benchmark scorecard** (`GET /benchmark`) and a gallery of all 8 golden cases read from
-  `golden_set.yaml`, each traced at the snapshot the benchmark scored it at.
+  below it the **benchmark scorecard** (`GET /benchmark`, including the recorded recovery test), the
+  **IntakePanel** (paste complaint text → addresses extracted and checksum-validated → one case per
+  chain → convergence runs automatically; its sample is the 8 OFAC-listed Lazarus ETH wallets), and a
+  gallery of every golden case read from `golden_set.yaml`, each traced at the snapshot the benchmark
+  scored it at.
 - **RecommendedTarget** — the verdict as a sentence ("Funds reached Binance in 2 hops"), then metrics
   and the techniques detected. Abstention and INCOMPLETE get their own headline; contested cases name
   both exchanges and the gap. Loading a report scrolls to the top and flashes this card.
@@ -661,7 +682,10 @@ GET  /trace/{id}/provenance                     → ProvenanceCard rows + respon
 GET  /trace/{id}/graph     ?limit               → the walked subgraph, from Postgres (§7.6); candidate path edges first
 GET  /trace/{id}/techniques                     → per-hop technique timeline with basis (§10.1)
 GET  /trace/{id}/stream                         → text/event-stream: status | edges | done (live subgraph)
-GET  /benchmark                                 → frozen-weight eval over the golden set + summary (§11.2)
+GET  /benchmark                                 → frozen-weight eval over the golden set + summary
+                                                   + the recorded recovery test (§11.2)
+POST /intake     {text, snapshots{chain:int}}   → {addresses[{address,chain,valid,check}], cases{chain:
+                                                   {trace_ids,…}}, convergence{chain:url}, dropped_over_cap}
 POST /trace/{id}/rescore   {weights|perturb_pct|profiles}  → what-if ranking (§11.2)
 GET  /convergence          ?trace_ids&chain&min_shared     → shared nodes across traces (§8)
 GET  /wallets/{addr}/score ?chain=              → {score, breakdown}
@@ -832,7 +856,9 @@ example and a full screen-recording backup. Rehearse broken-Wi-Fi mode.
 | Risk score (exposure-based) | **S/optional** | last; PS says "may additionally support" |
 | Peeling-chain typology | **S** | time-boxed; **first to cut** (keep change detection) |
 | SAHYOG intake + disclosure | **F** | documented mock contract |
-| Tron / Solana adapters | **F** | interface shown; **Tron = first stretch (fraud rail)**; labels seeded |
+| Tron adapter (USDT TRC-20) | **B** | built 2026-09-27: TronGrid, replayable; golden case reaches KuCoin (SAHYOG) |
+| Complaint-text intake → convergence | **B** | built 2026-09-28: `POST /intake`, checksum validation, IntakePanel |
+| Solana adapter | **F** | same shape as Tron: one provider file |
 | Security/authz, scale, streaming, learned scoring | **F** | named future work |
 | Colonial Pipeline | fixture | test only, zero demo minutes |
 
@@ -876,7 +902,7 @@ the plan assumes the plumbing already runs.
 
 ```
 ┌──────────── 2-WEEK MVP ─────────────┐        ┌──────────── PRODUCTION ─────────────┐
-│ BTC (UTXO) + ETH/Polygon (account)   │        │ Tron (fraud rail) / Solana / more    │
+│ BTC (UTXO) + ETH/Polygon/Tron (acct) │        │ Solana / more chains                 │
 │ Label & entity subsystem + sweep     │   →    │ Learned scoring on real labels       │
 │ Candidate ranking + recommendation   │        │ Cross-chain correlation              │
 │ Evidence scoring + eval harness      │        │ Streaming / chain-wide intelligence  │

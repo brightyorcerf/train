@@ -86,6 +86,14 @@ export function Landing({ onStarted, busy, onRecent, nRecent }: {
           <div className="k">network calls to reproduce all {s?.cases ?? ''}; {s?.calls ?? '…'} reads served from the
             content-hashed store</div>
         </div>
+        {b?.recovery && (
+          <div>
+            <div className="big">{b.recovery.named_real_deposit}<small> / {b.recovery.named}</small></div>
+            <div className="k">exchanges named in a {b.recovery.positives}-wallet recovery test that the money really
+              reached; abstained on {b.recovery.abstained}; {b.recovery.decoys_refused} of {b.recovery.decoys} mixer
+              traps refused</div>
+          </div>
+        )}
       </div>
 
       <IntakePanel />

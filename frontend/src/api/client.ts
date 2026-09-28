@@ -337,6 +337,11 @@ export type Benchmark = {
     stable: number; profiles: number; contested: number; calls: number; upstream: number
   }
   cases: BenchCase[]
+  /** scripts/recovery_bench.py's last recorded run (canonical.json), or null if never run */
+  recovery: null | {
+    positives: number; recovered: number; abstained: number; named: number; named_real_deposit: number
+    decoys: number; decoys_refused: number
+  }
 }
 
 export type Technique = {

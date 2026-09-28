@@ -573,7 +573,11 @@ def benchmark():
                 "stable": r["stable"], "wall_s": r["wall_s"],
                 "why": r["golden"].get("why"), "source_doc": r["golden"].get("source_doc"),
             } for r in out]}
-    return _BENCH[key]
+    canon = harness.CANONICAL
+    # the recovery test is minutes of live tracing, so it is served from its last recorded run
+    # (scripts/recovery_bench.py writes it), never recomputed here
+    rec = json.loads(canon.read_text()).get("recovery_benchmark") if canon.exists() else None
+    return {**_BENCH[key], "recovery": rec}
 
 
 # ---------- SAHYOG mock (§17) — documented contract, never a live integration ----------
